@@ -44,14 +44,18 @@
         <div id="itemInfo" class="alert alert-info d-none mb-3"></div>
 
         <label class="form-label fw-semibold">Add Members by LKC ID</label>
+        <div class="form-text mb-2">
+          <i class="bi bi-info-circle me-1"></i>
+          Select the event first — each member will be checked for matching category and individual registration.
+        </div>
         <div class="input-group mb-2" style="max-width:340px">
-          <input type="text" id="lkcIdInput" class="form-control" placeholder="e.g. LKC101"
-                 autocomplete="off">
+          <input type="text" id="lkcIdInput" class="form-control" placeholder="LKC101"
+                 value="LKC" autocomplete="off">
           <button type="button" class="btn btn-outline-primary" id="addMemberBtn">
             <i class="bi bi-plus-lg"></i> Add
           </button>
         </div>
-        <div id="lookupMsg" class="text-danger small mb-2 d-none"></div>
+        <div id="lookupMsg" class="small mb-2 d-none"></div>
 
         <div id="memberList" class="list-group mb-2"></div>
         <div id="memberCount" class="text-muted small mb-3">0 member(s) added</div>
@@ -81,17 +85,22 @@
 
 {% block extra_js %}
 <script>
-const itemSelect = document.getElementById('itemSelect');
-const itemInfo = document.getElementById('itemInfo');
-const lkcIdInput = document.getElementById('lkcIdInput');
+const itemSelect   = document.getElementById('itemSelect');
+const itemInfo     = document.getElementById('itemInfo');
+const lkcIdInput   = document.getElementById('lkcIdInput');
 const addMemberBtn = document.getElementById('addMemberBtn');
-const lookupMsg = document.getElementById('lookupMsg');
-const memberList = document.getElementById('memberList');
-const memberCount = document.getElementById('memberCount');
+const lookupMsg    = document.getElementById('lookupMsg');
+const memberList   = document.getElementById('memberList');
+const memberCount  = document.getElementById('memberCount');
 const memberInputs = document.getElementById('memberInputs');
 
-// Map of id -> member object for added members
 const members = {};
+
+function showMsg(html, type = 'danger') {
+  lookupMsg.className = `small mb-2 text-${type}`;
+  lookupMsg.innerHTML = html;
+  lookupMsg.classList.remove('d-none');
+}
 
 function updateInfo() {
   const opt = itemSelect.options[itemSelect.selectedIndex];
@@ -123,8 +132,8 @@ function renderMembers() {
     memberList.appendChild(item);
 
     const hidden = document.createElement('input');
-    hidden.type = 'hidden';
-    hidden.name = 'members[]';
+    hidden.type  = 'hidden';
+    hidden.name  = 'members[]';
     hidden.value = m.id;
     memberInputs.appendChild(hidden);
   });
@@ -132,31 +141,48 @@ function renderMembers() {
 }
 
 function addMember() {
-  const lkcId = lkcIdInput.value.trim();
-  if (!lkcId) return;
+  const lkcId = lkcIdInput.value.trim().toUpperCase();
+  if (!lkcId || lkcId === 'LKC') return;
   lookupMsg.classList.add('d-none');
 
-  fetch(`/participants/api/by-lkc-id?id=${encodeURIComponent(lkcId)}`)
+  const itemId = itemSelect.value;
+  const url = `/participants/api/by-lkc-id?id=${encodeURIComponent(lkcId)}`
+            + (itemId ? `&item_id=${itemId}` : '');
+
+  fetch(url)
     .then(r => r.json())
     .then(d => {
       if (!d.found) {
-        lookupMsg.textContent = `No participant found with LKC ID "${lkcId}".`;
-        lookupMsg.classList.remove('d-none');
+        showMsg(`No participant found with LKC ID "${lkcId}".`);
         return;
       }
       if (members[d.id]) {
-        lookupMsg.textContent = `${d.full_name} is already added.`;
-        lookupMsg.classList.remove('d-none');
+        showMsg(`${d.full_name} is already added.`, 'warning');
+        return;
+      }
+      if (d.eligible === false && d.eligibility_issues.length) {
+        showMsg(
+          `<strong>${d.full_name}</strong> cannot be added:<br>` +
+          d.eligibility_issues.map(i => `&bull; ${i}`).join('<br>')
+        );
         return;
       }
       members[d.id] = d;
-      lkcIdInput.value = '';
+      lkcIdInput.value = 'LKC';
+      lkcIdInput.focus();
+      lookupMsg.classList.add('d-none');
       renderMembers();
     });
 }
 
 addMemberBtn.addEventListener('click', addMember);
-lkcIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addMember(); } });
+lkcIdInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addMember(); }
+});
+lkcIdInput.addEventListener('focus', () => {
+  const len = lkcIdInput.value.length;
+  lkcIdInput.setSelectionRange(len, len);
+});
 itemSelect.addEventListener('change', updateInfo);
 
 // Pre-populate members from server (warning re-display)

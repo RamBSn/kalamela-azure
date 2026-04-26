@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+wheels/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# Environment variables / secrets
+.env
+*.env
+
+# Flask instance folder (local SQLite DB, admin hash)
+instance/
+
+# Uploads and backups (runtime data — not source)
+app/static/uploads/
+backups/
+
+# Pytest
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Deployment artefacts
+deploy.zip
+
+# Terraform (infra state and secrets)
+infra/azure/.terraform/
+infra/azure/.terraform.lock.hcl
+infra/azure/terraform.tfstate
+infra/azure/terraform.tfstate.backup
+infra/azure/crash.log

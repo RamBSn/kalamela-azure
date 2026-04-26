@@ -265,6 +265,18 @@ def register_group():
             if non_female:
                 warnings.append(f'{item.name} is females only. Non-female members: {", ".join(non_female)}.')
 
+        # Per-member: category match and individual registration
+        for m in members:
+            if item.category != 'Common' and m.category != item.category:
+                warnings.append(
+                    f'{m.full_name}: category mismatch '
+                    f'({m.category} participant in a {item.category} event).'
+                )
+            if not Entry.query.filter_by(participant_id=m.id, item_id=item_id).first():
+                warnings.append(
+                    f'{m.full_name} is not individually registered for "{item.name}".'
+                )
+
         override = request.form.get('override_warnings') == '1'
         if warnings and not override:
             flash('Group eligibility warnings — confirm override to proceed.', 'warning')
@@ -304,17 +316,47 @@ def register_group():
 @participants_bp.route('/api/by-lkc-id')
 def participant_by_lkc_id():
     lkc_id = request.args.get('id', '').strip()
+    item_id = request.args.get('item_id', type=int)
+
     p = Participant.query.filter_by(lkc_id=lkc_id).first()
     if not p:
         return jsonify({'found': False})
-    return jsonify({
+
+    result = {
         'found': True,
         'id': p.id,
         'full_name': p.full_name,
         'category': p.category,
         'gender': p.gender,
         'chest_number': p.chest_number,
-    })
+        'eligible': True,
+        'eligibility_issues': [],
+    }
+
+    if item_id:
+        item = CompetitionItem.query.get(item_id)
+        if item:
+            issues = []
+            # 1. Age category must match (Common events accept everyone)
+            if item.category != 'Common' and p.category != item.category:
+                issues.append(
+                    f'Category mismatch: participant is {p.category}, '
+                    f'this event is for {item.category}.'
+                )
+            # 2. Participant must be individually registered for this group event
+            registered = Entry.query.filter_by(
+                participant_id=p.id, item_id=item_id
+            ).first()
+            if not registered:
+                issues.append(
+                    f'Not individually registered for "{item.name}". '
+                    f'Register the participant for this event first.'
+                )
+            if issues:
+                result['eligible'] = False
+                result['eligibility_issues'] = issues
+
+    return jsonify(result)
 
 
 @participants_bp.route('/groups')
