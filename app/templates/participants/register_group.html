@@ -70,6 +70,29 @@
         </div>
         {% endif %}
 
+        <div class="border-top pt-3 mt-2">
+          <p class="text-muted small mb-2">
+            <i class="bi bi-shield-check text-success me-1"></i>
+            <strong>Data Privacy:</strong> The personal information collected on this form will be used
+            solely for managing participation in the LKC Kalamela event — including registration,
+            scheduling, scoring, and certificate generation. Data is stored locally and will not be
+            shared with third parties. For full details on how Leicester Kerala Community handles your
+            personal data, please read the
+            <a href="https://www.leicesterkeralacommunity.org.uk/lkc-gdpr-policy/"
+               target="_blank" rel="noopener noreferrer">LKC GDPR Policy</a>.
+          </p>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="gdpr_consent"
+                   id="gdprConsent" required>
+            <label class="form-check-label small" for="gdprConsent">
+              I consent to Leicester Kerala Community collecting and processing the above personal
+              information for event management purposes in accordance with the
+              <a href="https://www.leicesterkeralacommunity.org.uk/lkc-gdpr-policy/"
+                 target="_blank" rel="noopener noreferrer">LKC GDPR Policy</a>. *
+            </label>
+          </div>
+        </div>
+
         <div class="d-flex gap-2">
           <button type="submit" class="btn btn-success">Register Group</button>
           <a href="{{ url_for('participants.list_groups') }}" class="btn btn-outline-secondary">Cancel</a>

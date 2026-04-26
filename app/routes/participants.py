@@ -20,15 +20,19 @@ def check_eligibility(participant, item):
     if item.gender_restriction == 'Female' and participant.gender != 'Female':
         warnings.append(f'"{item.name}" is for females only.')
 
-    # Category check — participant cannot compete in higher category if own category has the event
-    if item.category != 'Common':
-        own_cat_has_item = CompetitionItem.query.filter_by(
-            name=item.name, category=participant.category
-        ).first()
-        if own_cat_has_item and item.category != participant.category:
+    # Category eligibility
+    if item.category != 'Common' and item.category != participant.category:
+        if participant.category == 'Super Senior' and item.category == 'Senior':
+            # Super Seniors may enter Senior events UNLESS the same event exists in Super Senior
+            if CompetitionItem.query.filter_by(name=item.name, category='Super Senior').first():
+                warnings.append(
+                    f'"{item.name}" is available in the Super Senior category. '
+                    'Super Seniors must compete in their own category for this event.'
+                )
+        else:
             warnings.append(
-                f'Participant\'s category is "{participant.category}". '
-                f'This item is available in their own category — cannot compete in "{item.category}".'
+                f'This event is for the {item.category} category. '
+                f'Participant\'s category is "{participant.category}".'
             )
 
     # Max events check
@@ -69,11 +73,25 @@ def list_participants():
     return render_template('participants/list.html', participants=participants, search=search)
 
 
+def _ss_excluded_senior_ids():
+    """Return the IDs of Senior-category items that Super Seniors may NOT enter
+    (because the same event exists in the Super Senior category)."""
+    result = []
+    for ss_item in CompetitionItem.query.filter_by(category='Super Senior').all():
+        senior_equiv = CompetitionItem.query.filter_by(
+            name=ss_item.name, category='Senior'
+        ).first()
+        if senior_equiv:
+            result.append(senior_equiv.id)
+    return result
+
+
 @participants_bp.route('/register', methods=['GET', 'POST'])
 def register_individual():
     items = CompetitionItem.query.order_by(
         CompetitionItem.category, CompetitionItem.name
     ).all()
+    ss_excluded = _ss_excluded_senior_ids()
 
     today = date.today().isoformat()
 
@@ -88,6 +106,7 @@ def register_individual():
                 form_data=request.form,
                 categories=CATEGORIES,
                 today=today,
+                ss_excluded_senior_ids=ss_excluded,
             )
 
         # --- Hard-block: event count (no override offered) ---
@@ -179,6 +198,7 @@ def register_individual():
         form_data=ImmutableMultiDict(),
         categories=CATEGORIES,
         today=today,
+        ss_excluded_senior_ids=ss_excluded,
     )
 
 
@@ -268,10 +288,18 @@ def register_group():
         # Per-member: category match and individual registration
         for m in members:
             if item.category != 'Common' and m.category != item.category:
-                warnings.append(
-                    f'{m.full_name}: category mismatch '
-                    f'({m.category} participant in a {item.category} event).'
-                )
+                if m.category == 'Super Senior' and item.category == 'Senior':
+                    # Super Senior exception: allowed unless same event exists in Super Senior
+                    if CompetitionItem.query.filter_by(name=item.name, category='Super Senior').first():
+                        warnings.append(
+                            f'{m.full_name}: "{item.name}" is available in the Super Senior '
+                            'category — must compete in their own category for this event.'
+                        )
+                else:
+                    warnings.append(
+                        f'{m.full_name}: category mismatch '
+                        f'({m.category} participant in a {item.category} event).'
+                    )
             if not Entry.query.filter_by(participant_id=m.id, item_id=item_id).first():
                 warnings.append(
                     f'{m.full_name} is not individually registered for "{item.name}".'
@@ -338,11 +366,20 @@ def participant_by_lkc_id():
         if item:
             issues = []
             # 1. Age category must match (Common events accept everyone)
+            # Exception: Super Seniors may enter Senior events unless the same event
+            # exists in the Super Senior category.
             if item.category != 'Common' and p.category != item.category:
-                issues.append(
-                    f'Category mismatch: participant is {p.category}, '
-                    f'this event is for {item.category}.'
-                )
+                if p.category == 'Super Senior' and item.category == 'Senior':
+                    if CompetitionItem.query.filter_by(name=item.name, category='Super Senior').first():
+                        issues.append(
+                            f'"{item.name}" is available in the Super Senior category. '
+                            'Super Seniors must compete in their own category for this event.'
+                        )
+                else:
+                    issues.append(
+                        f'Category mismatch: participant is {p.category}, '
+                        f'this event is for {item.category}.'
+                    )
             # 2. Participant must be individually registered for this group event
             registered = Entry.query.filter_by(
                 participant_id=p.id, item_id=item_id
