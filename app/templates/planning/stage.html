@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Plan — {{ stage.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.plan-row td { vertical-align: middle; }
+.entry-badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  margin: 1px 2px;
+  white-space: nowrap;
+}
+.cat-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 10px;
+}
+.reorder-btns form { display: inline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+  <div>
+    <a href="{{ url_for('planning.index') }}" class="text-muted small text-decoration-none">
+      <i class="bi bi-chevron-left"></i> All Stages
+    </a>
+    <h2 class="mb-0 mt-1"><i class="bi bi-journal-text me-2"></i>{{ stage.name }}</h2>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <form method="post" action="{{ url_for('planning.sort_by_category', stage_id=stage.id) }}"
+          class="d-inline">
+      <button class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-sort-down me-1"></i>Sort by Category
+      </button>
+    </form>
+    <form method="post" action="{{ url_for('planning.restore_all', stage_id=stage.id) }}"
+          class="d-inline">
+      <button class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-clockwise me-1"></i>Restore All Events
+      </button>
+    </form>
+    <a href="{{ url_for('planning.print_plan', stage_id=stage.id) }}"
+       class="btn btn-outline-secondary btn-sm" target="_blank">
+      <i class="bi bi-printer me-1"></i>Print
+    </a>
+    <a href="{{ url_for('planning.pdf_plan', stage_id=stage.id) }}"
+       class="btn btn-success btn-sm" target="_blank">
+      <i class="bi bi-file-earmark-pdf-fill me-1"></i>Download PDF
+    </a>
+  </div>
+</div>
+
+{% if plan_data %}
+
+<div class="card">
+  <table class="table table-hover mb-0" id="planTable">
+    <thead class="table-dark">
+      <tr>
+        <th style="width:50px">#</th>
+        <th>Event</th>
+        <th style="width:120px">Category</th>
+        <th>Participants</th>
+        <th style="width:115px" class="text-center">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set ns = namespace(prev_cat=None) %}
+      {% for row in plan_data %}
+
+      {# Category divider row when category changes #}
+      {% if row.item.category != ns.prev_cat %}
+        {% set colour_map = {
+          'Kids': 'bg-success',
+          'Sub-Junior': 'bg-primary',
+          'Junior': 'bg-info text-dark',
+          'Senior': 'bg-warning text-dark',
+          'Super Senior': 'bg-danger',
+          'Common': 'bg-secondary'
+        } %}
+        <tr class="table-light">
+          <td colspan="5" class="py-1">
+            <span class="cat-badge text-white {{ colour_map.get(row.item.category, 'bg-secondary') }}">
+              {{ row.item.category }}
+            </span>
+          </td>
+        </tr>
+        {% set ns.prev_cat = row.item.category %}
+      {% endif %}
+
+      <tr class="plan-row">
+        <td class="text-muted fw-semibold">{{ row.seq }}</td>
+        <td>
+          <strong>{{ row.item.name }}</strong>
+          {% if row.item.item_type == 'group' %}
+          <span class="badge bg-light text-dark border ms-1" style="font-size:.7rem">group</span>
+          {% endif %}
+        </td>
+        <td>
+          <span class="badge bg-secondary">{{ row.item.category }}</span>
+        </td>
+        <td>
+          {% if row.entries %}
+            {% for e in row.entries %}
+            <span class="entry-badge">#{{ e.chest_number }} {{ e.display_name }}</span>
+            {% endfor %}
+            <span class="text-muted small ms-1">({{ row.entries|length }})</span>
+          {% else %}
+            <span class="text-muted small fst-italic">No participants yet</span>
+          {% endif %}
+        </td>
+        <td class="text-center reorder-btns">
+          <form method="post" action="{{ url_for('planning.reorder_item', stage_id=stage.id) }}">
+            <input type="hidden" name="plan_item_id" value="{{ row.plan_item.id }}">
+            <input type="hidden" name="direction" value="up">
+            <button class="btn btn-sm btn-outline-secondary py-0 px-1"
+                    {% if loop.first %}disabled{% endif %}
+                    title="Move up">
+              <i class="bi bi-arrow-up"></i>
+            </button>
+          </form>
+          <form method="post" action="{{ url_for('planning.reorder_item', stage_id=stage.id) }}">
+            <input type="hidden" name="plan_item_id" value="{{ row.plan_item.id }}">
+            <input type="hidden" name="direction" value="down">
+            <button class="btn btn-sm btn-outline-secondary py-0 px-1"
+                    {% if loop.last %}disabled{% endif %}
+                    title="Move down">
+              <i class="bi bi-arrow-down"></i>
+            </button>
+          </form>
+          <form method="post" action="{{ url_for('planning.remove_item', stage_id=stage.id) }}"
+                onsubmit="return confirm('Remove {{ row.item.name }} from this plan?')">
+            <input type="hidden" name="plan_item_id" value="{{ row.plan_item.id }}">
+            <button class="btn btn-sm btn-outline-danger py-0 px-1" title="Remove from plan">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% set ns_total = namespace(count=0) %}
+{% for row in plan_data %}{% set ns_total.count = ns_total.count + row.entries|length %}{% endfor %}
+<div class="text-muted small mt-2">
+  {{ plan_data|length }} event{{ 's' if plan_data|length != 1 }} &nbsp;|&nbsp;
+  {{ ns_total.count }} participant{{ 's' if ns_total.count != 1 }}
+</div>
+
+{% else %}
+<div class="alert alert-info mt-3">
+  No events assigned to this stage yet.
+  <a href="{{ url_for('setup.stages') }}">Assign events from the Stages setup page.</a>
+</div>
+{% endif %}
+{% endblock %}

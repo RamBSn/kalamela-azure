@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
 from app import db
-from app.models import Stage, Entry, CompetitionItem, EventConfig
+from app.models import Stage, Entry, CompetitionItem, EventConfig, Participant, GroupEntry
 
 schedule_bp = Blueprint('schedule', __name__)
 
@@ -75,6 +75,89 @@ def print_schedule():
                            category=category,
                            categories=categories,
                            cfg=cfg)
+
+
+@schedule_bp.route('/chest-numbers')
+def chest_numbers():
+    cfg = EventConfig.query.first()
+
+    include_registered = request.args.get('registered', '1') == '1'
+    range_from = request.args.get('from', type=int, default=0)
+    range_to   = request.args.get('to',   type=int, default=0)
+
+    # Build name lookup for registered numbers
+    participants = {p.chest_number: p.full_name
+                    for p in Participant.query.all()}
+    groups = {g.chest_number: g.group_name
+              for g in GroupEntry.query.all()}
+    registered_numbers = sorted(set(participants) | set(groups))
+
+    numbers = []
+    if include_registered:
+        for n in registered_numbers:
+            numbers.append({
+                'number': n,
+                'name': participants.get(n) or groups.get(n, ''),
+                'registered': True,
+            })
+
+    # Extra range (skip already included)
+    existing = {item['number'] for item in numbers}
+    if range_from and range_to and range_from <= range_to:
+        for n in range(range_from, range_to + 1):
+            if n not in existing:
+                numbers.append({'number': n, 'name': '', 'registered': False})
+
+    numbers.sort(key=lambda x: x['number'])
+
+    return render_template(
+        'schedule/chest_numbers.html',
+        numbers=numbers,
+        registered_count=len(registered_numbers),
+        include_registered=include_registered,
+        range_from=range_from or '',
+        range_to=range_to or '',
+        cfg=cfg,
+    )
+
+
+@schedule_bp.route('/chest-numbers/pdf')
+def chest_numbers_pdf():
+    include_registered = request.args.get('registered', '1') == '1'
+    range_from = request.args.get('from', type=int, default=0)
+    range_to   = request.args.get('to',   type=int, default=0)
+
+    cfg = EventConfig.query.first()
+    event_name = cfg.event_name if cfg else 'Kalamela'
+
+    participants = {p.chest_number: p.full_name for p in Participant.query.all()}
+    groups = {g.chest_number: g.group_name for g in GroupEntry.query.all()}
+    registered_numbers = sorted(set(participants) | set(groups))
+
+    numbers = []
+    if include_registered:
+        for n in registered_numbers:
+            numbers.append({
+                'number': n,
+                'name': participants.get(n) or groups.get(n, ''),
+                'registered': True,
+            })
+
+    existing = {item['number'] for item in numbers}
+    if range_from and range_to and range_from <= range_to:
+        for n in range(range_from, range_to + 1):
+            if n not in existing:
+                numbers.append({'number': n, 'name': '', 'registered': False})
+
+    numbers.sort(key=lambda x: x['number'])
+
+    from app.pdf.chest_numbers import generate_chest_numbers_pdf
+    pdf_bytes = generate_chest_numbers_pdf(numbers, event_name)
+
+    response = make_response(pdf_bytes)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'inline; filename="chest_numbers.pdf"'
+    return response
 
 
 @schedule_bp.route('/entry/<int:entry_id>/reorder', methods=['POST'])

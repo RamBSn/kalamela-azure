@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% block title %}Print Chest Numbers{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Screen styles ──────────────────────────────────────────────────────────── */
+.print-area {
+  max-width: 210mm;
+  margin: 0 auto;
+}
+
+.chest-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14mm 10mm;
+  background: #fff;
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  text-align: center;
+  height: 140mm;
+  box-sizing: border-box;
+}
+
+.chest-card .card-event {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #6c757d;
+}
+
+.chest-card .card-number {
+  font-size: 90px;
+  font-weight: 900;
+  line-height: 1;
+  color: #1a1a2e;
+  letter-spacing: -2px;
+}
+
+.chest-card.extra .card-number {
+  color: #495057;
+}
+
+.chest-card .card-name {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #343a40;
+  min-height: 1.4rem;
+}
+
+.page-divider {
+  border: none;
+  border-top: 2px dashed #ced4da;
+  margin: 0;
+}
+
+.page-label {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #adb5bd;
+  padding: 3px 0;
+  background: #f8f9fa;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ── Print styles ───────────────────────────────────────────────────────────── */
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+
+  /* Hide everything except the print area */
+  .navbar, .event-banner, .sidebar, .config-panel,
+  .page-header, .page-label, .btn, footer { display: none !important; }
+
+  .main-content { padding: 0 !important; }
+
+  .print-area { max-width: 100%; margin: 0; }
+
+  .chest-card {
+    width: 100%;
+    height: 138mm;
+    border: 2px solid #000;
+    border-radius: 0;
+    page-break-inside: avoid;
+    padding: 12mm 8mm;
+    margin: 0;
+  }
+
+  /* Page break after every second card */
+  .chest-card:nth-child(3n) {   /* every element at position 3, 6, 9... in the container
+                                    (accounts for the .page-divider siblings) */
+  }
+
+  /* The divider becomes a simple horizontal rule on print */
+  .page-divider {
+    display: block !important;
+    border-top: 1px dashed #666;
+    margin: 0;
+  }
+
+  /* Force a page break before every third child (new page pair) */
+  .page-pair { page-break-after: always; }
+  .page-pair:last-child { page-break-after: avoid; }
+
+  .chest-card .card-number { font-size: 200px; }
+  .chest-card.extra .card-number { color: #333; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Config panel (hidden on print) ──────────────────────────────────────── -->
+<div class="config-panel">
+  <div class="page-header d-flex justify-content-between align-items-center">
+    <h2><i class="bi bi-123 me-2"></i>Print Chest Numbers</h2>
+    <div class="d-flex gap-2">
+      {% if numbers %}
+      <a href="{{ url_for('schedule.chest_numbers_pdf',
+                          registered=('1' if include_registered else '0'),
+                          **({'from': range_from, 'to': range_to} if range_from and range_to else {})) }}"
+         class="btn btn-success" target="_blank">
+        <i class="bi bi-file-earmark-pdf-fill me-1"></i>Download PDF
+      </a>
+      <button onclick="window.print()" class="btn btn-primary">
+        <i class="bi bi-printer-fill me-1"></i>Print ({{ numbers|length }} numbers)
+      </button>
+      {% endif %}
+      <a href="{{ url_for('schedule.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Back
+      </a>
+    </div>
+  </div>
+
+  <div class="card p-4 mb-4">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <div class="form-check form-switch mt-1">
+          <input class="form-check-input" type="checkbox" name="registered" value="1" id="regCheck"
+                 {{ 'checked' if include_registered }}>
+          <label class="form-check-label fw-semibold" for="regCheck">
+            Registered participants
+            <span class="badge bg-secondary ms-1">{{ registered_count }}</span>
+          </label>
+        </div>
+        <div class="form-text">Individual + group chest numbers already registered.</div>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label fw-semibold">Also include unregistered range</label>
+        <div class="d-flex align-items-center gap-2">
+          <span class="text-muted">#</span>
+          <input type="number" name="from" class="form-control" style="max-width:100px"
+                 placeholder="From" min="1" value="{{ range_from }}">
+          <span class="text-muted">to</span>
+          <span class="text-muted">#</span>
+          <input type="number" name="to" class="form-control" style="max-width:100px"
+                 placeholder="To" min="1" value="{{ range_to }}">
+        </div>
+        <div class="form-text">Prints extra numbers not yet assigned to a participant.</div>
+      </div>
+
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-primary w-100">
+          <i class="bi bi-arrow-clockwise me-1"></i>Update
+        </button>
+      </div>
+    </form>
+  </div>
+
+  {% if numbers %}
+  <p class="text-muted small mb-3">
+    <i class="bi bi-info-circle me-1"></i>
+    {{ numbers|length }} chest number{{ 's' if numbers|length != 1 }},
+    {{ ((numbers|length) / 2)|round(0, 'ceil')|int }} A4 page{{ 's' if ((numbers|length) / 2)|round(0, 'ceil')|int != 1 }}.
+    Dashed line = cut here.
+  </p>
+  {% endif %}
+</div>
+
+<!-- ── Print area: 2 chest numbers per A4 page ─────────────────────────────── -->
+{% if numbers %}
+<div class="print-area">
+  {% for n in numbers %}
+  {% set pair_pos = loop.index0 % 2 %}  {# 0 = first of pair, 1 = second #}
+
+  {% if pair_pos == 0 %}
+  <div class="page-pair">
+  {% endif %}
+
+    <div class="chest-card {{ '' if n.registered else 'extra' }}">
+      <div class="card-event">
+        {{ cfg.event_name if cfg else 'Kalamela' }}
+      </div>
+      <div class="card-number">{{ n.number }}</div>
+      <div class="card-name">{{ n.name if n.name else '&nbsp;' }}</div>
+    </div>
+
+    {% if pair_pos == 0 and not loop.last %}
+    <hr class="page-divider">
+    <div class="page-label d-print-none">✂ cut here</div>
+    {% endif %}
+
+  {% if pair_pos == 1 or loop.last %}
+  </div>  {# end .page-pair #}
+  {% endif %}
+
+  {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+  No numbers to display. Tick "Registered participants" or enter a number range above.
+</div>
+{% endif %}
+{% endblock %}

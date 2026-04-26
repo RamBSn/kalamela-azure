@@ -63,12 +63,14 @@ def create_app(test_config=None):
     from app.routes.certificates import certificates_bp
     from app.routes.scoresheets import scoresheets_bp
     from app.routes.data import data_bp
+    from app.routes.planning import planning_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main_bp)
     app.register_blueprint(setup_bp, url_prefix='/setup')
     app.register_blueprint(participants_bp, url_prefix='/participants')
     app.register_blueprint(schedule_bp, url_prefix='/schedule')
+    app.register_blueprint(planning_bp, url_prefix='/planning')
     app.register_blueprint(scores_bp, url_prefix='/scores')
     app.register_blueprint(results_bp, url_prefix='/results')
     app.register_blueprint(certificates_bp, url_prefix='/certificates')

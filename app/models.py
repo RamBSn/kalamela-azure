@@ -35,6 +35,22 @@ class Stage(db.Model):
     entries = db.relationship('Entry', backref='stage', lazy=True)
 
 
+class StagePlanItem(db.Model):
+    """Ordered list of competition items for a stage's planning schedule."""
+    __tablename__ = 'stage_plan_item'
+    id = db.Column(db.Integer, primary_key=True)
+    stage_id = db.Column(db.Integer, db.ForeignKey('stage.id'), nullable=False)
+    item_id = db.Column(db.Integer, db.ForeignKey('competition_item.id'), nullable=False)
+    display_order = db.Column(db.Integer, default=0)
+
+    stage = db.relationship('Stage')
+    item = db.relationship('CompetitionItem')
+
+    __table_args__ = (
+        db.UniqueConstraint('stage_id', 'item_id', name='uq_stage_plan_item'),
+    )
+
+
 class CompetitionItem(db.Model):
     __tablename__ = 'competition_item'
     id = db.Column(db.Integer, primary_key=True)

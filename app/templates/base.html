@@ -120,6 +120,9 @@
 
       <div class="sidebar-section">On the Day</div>
       <ul class="nav flex-column">
+        <li><a class="nav-link {% if 'planning' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('planning.index') }}">
+          <i class="bi bi-journal-text"></i> Event Planning</a></li>
         <li><a class="nav-link {% if 'schedule' in request.endpoint %}active{% endif %}"
                href="{{ url_for('schedule.index') }}">
           <i class="bi bi-calendar3"></i> Schedule</a></li>
