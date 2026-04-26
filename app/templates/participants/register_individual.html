@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}Register Individual{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-person-plus me-2"></i>Register Individual Participant</h2>
+</div>
+
+{% if warnings %}
+<div class="alert alert-danger">
+  <strong>Registration blocked — eligibility errors:</strong>
+  <ul class="mb-0 mt-1">
+    {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card p-4">
+      <form method="post">
+        <h6 class="fw-semibold mb-3">Personal Details</h6>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Full Name *</label>
+            <input type="text" name="full_name" class="form-control"
+                   value="{{ form_data.get('full_name','') }}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Date of Birth *</label>
+            <input type="date" name="date_of_birth" id="dobInput" class="form-control"
+                   value="{{ form_data.get('date_of_birth','') }}"
+                   min="1900-01-01" max="{{ today }}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Category</label>
+            <input type="text" id="categoryDisplay" class="form-control bg-light" readonly
+                   value="{{ form_data.get('category','') or 'Auto-assigned' }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Gender *</label>
+            <select name="gender" class="form-select" required>
+              <option value="">Select...</option>
+              <option value="Male" {{ 'selected' if form_data.get('gender')=='Male' }}>Male</option>
+              <option value="Female" {{ 'selected' if form_data.get('gender')=='Female' }}>Female</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">LKC ID *</label>
+            <input type="text" name="lkc_id" class="form-control"
+                   value="{{ form_data.get('lkc_id','LKC') }}"
+                   pattern="[Ll][Kk][Cc][0-9]{3,4}"
+                   maxlength="7" placeholder="LKC1234"
+                   title="LKC followed by 3 or 4 digits (e.g. LKC1234)"
+                   required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Phone *</label>
+            <input type="text" name="phone" class="form-control"
+                   value="{{ form_data.get('phone','07') }}"
+                   pattern="07[0-9]{9}" maxlength="11"
+                   placeholder="07XXXXXXXXX"
+                   title="Must be 11 digits starting with 07"
+                   required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control"
+                   value="{{ form_data.get('email','') }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Parent / Guardian Name</label>
+            <input type="text" name="parent_name" class="form-control"
+                   value="{{ form_data.get('parent_name','') }}">
+          </div>
+        </div>
+
+        <hr class="my-4">
+        <h6 class="fw-semibold mb-3">Enrol in Events <span class="text-muted fw-normal">(max 4: 3 solo + 1 group, or 2 solo + 2 group)</span></h6>
+
+        <div id="noItemsMsg" class="text-muted d-none">Enter date of birth to see eligible events.</div>
+
+        {% set cat_order = ['Kids','Sub-Junior','Junior','Senior','Super Senior','Common'] %}
+        {% for cat in cat_order %}
+          {% set cat_items = items | selectattr('category','equalto',cat) | list %}
+          {% if cat_items %}
+          <div class="category-section" data-category="{{ cat }}">
+            <h6 class="text-muted mt-3">{{ cat }}</h6>
+            <div class="row g-2">
+              {% for item in cat_items %}
+              <div class="col-md-6">
+                <div class="form-check">
+                  <input class="form-check-input event-check" type="checkbox"
+                         name="items[]" value="{{ item.id }}"
+                         id="item_{{ item.id }}"
+                         data-type="{{ item.item_type }}"
+                         {{ 'checked' if item.id|string in form_data.getlist('items[]') }}>
+                  <label class="form-check-label" for="item_{{ item.id }}">
+                    {{ item.name }}
+                    <span class="badge {% if item.item_type=='solo' %}bg-primary{% else %}bg-success{% endif %} ms-1">
+                      {{ item.item_type }}</span>
+                    {% if item.gender_restriction %}
+                    <span class="badge bg-warning text-dark ms-1">{{ item.gender_restriction }} only</span>
+                    {% endif %}
+                  </label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        {% endfor %}
+
+        <div id="eventCountWarning" class="alert alert-danger mt-3 d-none">
+          <strong>Too many events selected.</strong>
+          Maximum allowed: 3 solo + 1 group, or 2 solo + 2 group (4 total).
+          Please deselect some events before continuing.
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+          <button type="submit" id="submitBtn" class="btn btn-primary">Register Participant</button>
+          <a href="{{ url_for('participants.list_participants') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterItemsByCategory(category) {
+  const sections = document.querySelectorAll('.category-section');
+  let anyVisible = false;
+  sections.forEach(section => {
+    const sectionCat = section.dataset.category;
+    const show = !category || sectionCat === category || sectionCat === 'Common';
+    section.style.display = show ? '' : 'none';
+    if (!show) {
+      section.querySelectorAll('.event-check').forEach(cb => { cb.checked = false; });
+    }
+    if (show) anyVisible = true;
+  });
+  document.getElementById('noItemsMsg').classList.toggle('d-none', !category || anyVisible);
+}
+
+document.getElementById('dobInput').addEventListener('change', function() {
+  const dob = this.value;
+  if (!dob) { filterItemsByCategory(''); return; }
+  fetch(`/participants/api/category-from-dob?dob=${dob}`)
+    .then(r => r.json())
+    .then(d => {
+      const cat = d.category || '';
+      document.getElementById('categoryDisplay').value = cat;
+      filterItemsByCategory(cat);
+    });
+});
+
+document.querySelectorAll('.event-check').forEach(cb => {
+  cb.addEventListener('change', checkEventCount);
+});
+
+function checkEventCount() {
+  const checked = [...document.querySelectorAll('.event-check:checked')];
+  const soloCount = checked.filter(c => c.dataset.type === 'solo').length;
+  const groupCount = checked.filter(c => c.dataset.type === 'group').length;
+  const valid = (soloCount <= 3 && groupCount <= 1 && soloCount + groupCount <= 4) ||
+                (soloCount <= 2 && groupCount <= 2 && soloCount + groupCount <= 4);
+  document.getElementById('eventCountWarning').classList.toggle('d-none', valid);
+  document.getElementById('submitBtn').disabled = !valid;
+}
+
+document.querySelector('form').addEventListener('submit', function(e) {
+  const checked = [...document.querySelectorAll('.event-check:checked')];
+  const soloCount = checked.filter(c => c.dataset.type === 'solo').length;
+  const groupCount = checked.filter(c => c.dataset.type === 'group').length;
+  const valid = (soloCount <= 3 && groupCount <= 1 && soloCount + groupCount <= 4) ||
+                (soloCount <= 2 && groupCount <= 2 && soloCount + groupCount <= 4);
+  if (!valid) {
+    e.preventDefault();
+    document.getElementById('eventCountWarning').classList.remove('d-none');
+  }
+});
+
+// On page load: if DOB already filled (form re-display), restore category filter
+(function() {
+  const dob = document.getElementById('dobInput').value;
+  if (dob) {
+    fetch(`/participants/api/category-from-dob?dob=${dob}`)
+      .then(r => r.json())
+      .then(d => { filterItemsByCategory(d.category || ''); });
+  } else {
+    filterItemsByCategory(null);
+    document.getElementById('noItemsMsg').classList.remove('d-none');
+  }
+})();
+</script>
+{% endblock %}

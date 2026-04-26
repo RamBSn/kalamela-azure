@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+{% block title %}Results & Awards{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-bar-chart me-2"></i>Results & Awards</h2>
+</div>
+
+<ul class="nav nav-tabs mb-4" id="resultsTabs">
+  <li class="nav-item">
+    <a class="nav-link active" href="#events" data-bs-toggle="tab">Event Results</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="#champions" data-bs-toggle="tab">Individual Champions</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="#kk" data-bs-toggle="tab">Kalathilakam / Kalaprathibha</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="#bhasha" data-bs-toggle="tab">Malayalam Bhasha Kesari</a>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ── Event Results ─────────────────────────────────────── -->
+  <div class="tab-pane fade show active" id="events">
+    <div class="row g-3 mb-3">
+      {% set cat_order = ['Kids','Sub-Junior','Junior','Senior','Super Senior','Common'] %}
+      {% for cat in cat_order %}
+        {% set cat_items = items_with_results | selectattr('category','equalto',cat) | list %}
+        {% if cat_items %}
+        <div class="col-12">
+          <h5 class="text-muted">{{ cat }}</h5>
+        </div>
+        {% for item in cat_items %}
+        <div class="col-md-4">
+          <div class="card p-3">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div class="fw-semibold">{{ item.name }}</div>
+              <a href="{{ url_for('results.live', item_id=item.id) }}"
+                 class="btn btn-sm btn-outline-primary" target="_blank">
+                <i class="bi bi-broadcast me-1"></i>Live
+              </a>
+            </div>
+            <a href="{{ url_for('results.event_results', item_id=item.id) }}"
+               class="btn btn-sm btn-outline-secondary w-100">View Full Results</a>
+          </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── Individual Champions ──────────────────────────────── -->
+  <div class="tab-pane fade" id="champions">
+    {% set cat_order = ['Kids','Sub-Junior','Junior','Senior','Super Senior'] %}
+    {% for cat in cat_order %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-trophy-fill text-warning me-2"></i>{{ cat }} — Individual Champion
+      </div>
+      <div class="card-body">
+        {% set winners = champions.get(cat, []) %}
+        {% if winners %}
+          {% for w in winners %}
+          <div class="mb-2">
+            <span class="fs-5 fw-bold">{{ w.name }}</span>
+            <span class="text-muted ms-2">({{ w.gender }})</span>
+            <span class="badge bg-primary ms-2">Solo: {{ w.solo }} pts &nbsp;|&nbsp; Group: {{ w.group }} pts</span>
+          </div>
+          <details class="ms-3">
+            <summary class="text-muted small">Points breakdown</summary>
+            <table class="table table-sm mt-2">
+              <thead><tr><th>Event</th><th>Category</th><th>Type</th><th>Position</th><th>Points</th></tr></thead>
+              <tbody>
+                {% for r in w.results %}
+                <tr>
+                  <td>{{ r[0] }}</td><td>{{ r[4] }}</td>
+                  <td>{{ r[3] }}</td>
+                  <td>{{ r[1] }}{% if r[1]==1 %} 🥇{% elif r[1]==2 %} 🥈{% elif r[1]==3 %} 🥉{% endif %}</td>
+                  <td>{{ r[2] }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+          {% endfor %}
+        {% else %}
+        <p class="text-muted mb-0">No results available yet for this category.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Kalathilakam / Kalaprathibha ──────────────────────── -->
+  <div class="tab-pane fade" id="kk">
+    {% for award_name, colour in [('Kalathilakam','pink'), ('Kalaprathibha','blue')] %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-award-fill me-2"></i>{{ award_name }}
+        <span class="text-muted fw-normal ms-2">
+          ({{ 'Female — most versatile artist' if award_name == 'Kalathilakam' else 'Male — most versatile artist' }})
+        </span>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">
+          Eligibility: 1st prize in a Dance single event AND a Non-Dance single event.
+          Points: Single 1st=5, 2nd=3, 3rd=1 &nbsp;|&nbsp; Group 1st=1, 2nd=0.5, 3rd=0.25
+        </p>
+        {% set winners = kk.get(award_name, []) %}
+        {% if winners %}
+          {% for w in winners %}
+          <div class="mb-2">
+            <span class="fs-5 fw-bold">{{ w.name }}</span>
+            <span class="badge bg-primary ms-2">Solo: {{ w.solo }} pts &nbsp;|&nbsp; Group: {{ w.group }} pts</span>
+          </div>
+          <details class="ms-3">
+            <summary class="text-muted small">Points breakdown</summary>
+            <table class="table table-sm mt-2">
+              <thead><tr><th>Event</th><th>Category</th><th>Type</th><th>Position</th><th>Points</th></tr></thead>
+              <tbody>
+                {% for r in w.results %}
+                <tr>
+                  <td>{{ r[0] }}</td><td>{{ r[4] }}</td>
+                  <td>{{ r[3] }}</td><td>{{ r[1] }}</td><td>{{ r[2] }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+          {% endfor %}
+        {% else %}
+        <p class="text-muted mb-0">No eligible candidates yet.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Malayalam Bhasha Kesari ────────────────────────────── -->
+  <div class="tab-pane fade" id="bhasha">
+    <div class="card">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-translate me-2"></i>Malayalam Bhasha Kesari Puraskaram
+        <span class="text-muted fw-normal ms-2">
+          (Most points across: Elocution Malayalam, Poem Recitation, Monoact, Story Telling)
+        </span>
+      </div>
+      <div class="card-body">
+        {% if bhasha %}
+          {% for w in bhasha %}
+          <div class="mb-2">
+            <span class="fs-5 fw-bold">{{ w.name }}</span>
+            <span class="text-muted ms-2">({{ w.category }}, {{ w.gender }})</span>
+            <span class="badge bg-success ms-2">{{ w.points }} pts</span>
+          </div>
+          <details class="ms-3">
+            <summary class="text-muted small">Points breakdown</summary>
+            <table class="table table-sm mt-2">
+              <thead><tr><th>Event</th><th>Category</th><th>Position</th><th>Points</th></tr></thead>
+              <tbody>
+                {% for r in w.results %}
+                <tr>
+                  <td>{{ r[0] }}</td><td>{{ r[3] }}</td>
+                  <td>{{ r[1] }}</td><td>{{ r[2] }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </details>
+          {% endfor %}
+        {% else %}
+        <p class="text-muted mb-0">No results available for language events yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Participants{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2><i class="bi bi-people me-2"></i>Participants</h2>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('participants.list_groups') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-people-fill me-1"></i>View Groups
+    </a>
+    <a href="{{ url_for('participants.register_individual') }}" class="btn btn-primary">
+      <i class="bi bi-person-plus me-1"></i>Register Individual
+    </a>
+    <a href="{{ url_for('participants.register_group') }}" class="btn btn-success">
+      <i class="bi bi-people-fill me-1"></i>Register Group
+    </a>
+  </div>
+</div>
+
+<form class="mb-3">
+  <div class="input-group" style="max-width:350px">
+    <input type="text" name="q" class="form-control" placeholder="Search name or LKC ID..."
+           value="{{ search }}">
+    <button class="btn btn-outline-secondary">Search</button>
+  </div>
+</form>
+
+{% if participants %}
+<div class="card">
+  <table class="table table-hover table-sm mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Chest #</th><th>Name</th><th>Category</th><th>Gender</th>
+        <th>LKC ID</th><th>DOB</th><th>Events</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in participants %}
+      <tr>
+        <td><strong>{{ p.chest_number }}</strong></td>
+        <td>{{ p.full_name }}</td>
+        <td><span class="badge bg-secondary">{{ p.category }}</span></td>
+        <td>{{ p.gender }}</td>
+        <td class="text-muted">{{ p.lkc_id }}</td>
+        <td class="text-muted">{{ p.date_of_birth.strftime('%d/%m/%Y') }}</td>
+        <td>
+          {% for e in p.individual_entries %}
+            <span class="badge bg-light text-dark border me-1">
+              {{ e.competition_item.name }} ({{ e.competition_item.category }})
+            </span>
+          {% endfor %}
+        </td>
+        <td>
+          <a href="{{ url_for('participants.edit_participant', pid=p.id) }}"
+             class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <form method="post" action="{{ url_for('participants.delete_participant', pid=p.id) }}"
+                class="d-inline" onsubmit="return confirm('Remove {{ p.full_name }}?')">
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="text-muted small mt-2">{{ participants|length }} participant(s)</div>
+{% else %}
+<div class="alert alert-info">
+  No participants yet. <a href="{{ url_for('participants.register_individual') }}">Register the first one.</a>
+</div>
+{% endif %}
+{% endblock %}

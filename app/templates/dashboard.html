@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — LKC Kalamela Portal{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-speedometer2 me-2"></i>Dashboard</h2>
+  <p class="text-muted mb-0">{{ event_name }}</p>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-1 fw-bold text-primary">{{ stats.participants }}</div>
+      <div class="text-muted small">Participants</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-1 fw-bold text-success">{{ stats.entries }}</div>
+      <div class="text-muted small">Entries</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-1 fw-bold text-warning">{{ stats.scored }}</div>
+      <div class="text-muted small">Scored</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-1 fw-bold text-danger">{{ stats.pending }}</div>
+      <div class="text-muted small">Pending Scores</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-gear me-1"></i> Setup</div>
+      <div class="list-group list-group-flush">
+        <a href="{{ url_for('setup.event_settings') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-calendar-event me-2 text-muted"></i>Event Settings
+        </a>
+        <a href="{{ url_for('setup.stages') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-layout-split me-2 text-muted"></i>Manage Stages ({{ stats.stages }})
+        </a>
+        <a href="{{ url_for('setup.items') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-list-check me-2 text-muted"></i>Competition Items ({{ stats.item_count }})
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-people me-1"></i> Participants</div>
+      <div class="list-group list-group-flush">
+        <a href="{{ url_for('participants.register_individual') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-person-plus me-2 text-muted"></i>Register Individual
+        </a>
+        <a href="{{ url_for('participants.register_group') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-people-fill me-2 text-muted"></i>Register Group
+        </a>
+        <a href="{{ url_for('participants.list_participants') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-table me-2 text-muted"></i>View All Participants
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-play-circle me-1"></i> On the Day</div>
+      <div class="list-group list-group-flush">
+        <a href="{{ url_for('schedule.index') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-calendar3 me-2 text-muted"></i>Schedule & Stage Status
+        </a>
+        <a href="{{ url_for('scores.index') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-pencil-square me-2 text-muted"></i>Enter Scores
+        </a>
+        <a href="{{ url_for('results.index') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-bar-chart me-2 text-muted"></i>Results & Awards
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-printer me-1"></i> Print</div>
+      <div class="list-group list-group-flush">
+        <a href="{{ url_for('scoresheets.index') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-file-ruled me-2 text-muted"></i>Judge Score Sheets
+        </a>
+        <a href="{{ url_for('certificates.index') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-award me-2 text-muted"></i>Certificates
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header fw-semibold"><i class="bi bi-database me-1"></i> Data</div>
+      <div class="list-group list-group-flush">
+        <a href="{{ url_for('data.index') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-cloud-download me-2 text-muted"></i>Backup / Restore / Reset
+        </a>
+        <a href="{{ url_for('data.export_data') }}" class="list-group-item list-group-item-action">
+          <i class="bi bi-file-earmark-arrow-down me-2 text-muted"></i>Export Data (CSV/JSON)
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

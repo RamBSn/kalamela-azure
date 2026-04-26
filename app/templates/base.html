@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Association Kalamela Management System{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; }
+    .navbar-brand { font-weight: 700; letter-spacing: 0.5px; }
+    .sidebar { min-height: calc(100vh - 56px); background: #fff; border-right: 1px solid #dee2e6; }
+    .sidebar .nav-link { color: #495057; padding: 0.6rem 1.2rem; border-radius: 6px; margin: 2px 8px; }
+    .sidebar .nav-link:hover, .sidebar .nav-link.active { background: #e9ecef; color: #212529; }
+    .sidebar .nav-link i { width: 20px; }
+    .sidebar-section { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;
+                        color: #adb5bd; padding: 1rem 1.2rem 0.25rem; }
+    .main-content { padding: 2rem; }
+    .page-header { margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #dee2e6; }
+    .card { border: 1px solid #dee2e6; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .badge-waiting { background: #6c757d; }
+    .badge-performing { background: #0d6efd; }
+    .badge-completed { background: #198754; }
+    .event-banner { background: linear-gradient(135deg, #1a1a2e, #16213e);
+                    color: #fff; padding: 0.4rem 1rem; font-size: 0.85rem; text-align: center; }
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark sticky-top">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{{ url_for('main.welcome') }}">
+      <i class="bi bi-trophy-fill text-warning me-2"></i>LKC Kalamela Portal
+    </a>
+    <div class="d-flex align-items-center gap-2">
+      <span class="navbar-text text-white-50 small d-none d-sm-inline">{{ event_name }}</span>
+      {% if is_admin %}
+        <span class="badge bg-warning text-dark">
+          <i class="bi bi-shield-fill-check me-1"></i>Admin
+        </span>
+        <a href="{{ url_for('auth.change_password') }}" class="btn btn-sm btn-outline-light">
+          <i class="bi bi-key me-1"></i><span class="d-none d-lg-inline">Change Password</span>
+        </a>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-light">
+          <i class="bi bi-box-arrow-right me-1"></i>Logout
+        </a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-outline-warning">
+          <i class="bi bi-lock me-1"></i>Admin Login
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+{% if event_name %}
+<div class="event-banner">{{ event_name }}{% if event_date %} &nbsp;|&nbsp; {{ event_date }}{% endif %}</div>
+{% endif %}
+
+<div class="container-fluid">
+  <div class="row">
+
+    {% if is_admin or request.endpoint in ('participants.register_individual', 'participants.register_group') %}
+    <!-- Sidebar — admin, or public registration pages -->
+    <nav class="col-md-2 sidebar pt-3 d-none d-md-block">
+      {% if not is_admin %}
+      <div class="sidebar-section">Registration</div>
+      <ul class="nav flex-column">
+        <li><a class="nav-link {% if request.endpoint == 'participants.register_individual' %}active{% endif %}"
+               href="{{ url_for('participants.register_individual') }}">
+          <i class="bi bi-person-plus"></i> Register Individual</a></li>
+        <li><a class="nav-link {% if request.endpoint == 'participants.register_group' %}active{% endif %}"
+               href="{{ url_for('participants.register_group') }}">
+          <i class="bi bi-people-fill"></i> Register Group</a></li>
+      </ul>
+      {% else %}
+
+      <div class="sidebar-section">Overview</div>
+      <ul class="nav flex-column">
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}"
+             href="{{ url_for('main.dashboard') }}">
+            <i class="bi bi-speedometer2"></i> Dashboard
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if request.endpoint == 'main.welcome' %}active{% endif %}"
+             href="{{ url_for('main.welcome') }}">
+            <i class="bi bi-house"></i> Welcome Page
+          </a>
+        </li>
+      </ul>
+
+      <div class="sidebar-section">Setup</div>
+      <ul class="nav flex-column">
+        <li><a class="nav-link {% if 'setup' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('setup.event_settings') }}">
+          <i class="bi bi-gear"></i> Event Settings</a></li>
+        <li><a class="nav-link {% if request.endpoint == 'setup.stages' %}active{% endif %}"
+               href="{{ url_for('setup.stages') }}">
+          <i class="bi bi-layout-split"></i> Stages</a></li>
+        <li><a class="nav-link {% if 'items' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('setup.items') }}">
+          <i class="bi bi-list-check"></i> Items & Criteria</a></li>
+      </ul>
+
+      <div class="sidebar-section">Participants</div>
+      <ul class="nav flex-column">
+        <li><a class="nav-link {% if request.endpoint == 'participants.list_participants' %}active{% endif %}"
+               href="{{ url_for('participants.list_participants') }}">
+          <i class="bi bi-people"></i> All Participants</a></li>
+        <li><a class="nav-link {% if request.endpoint == 'participants.register_individual' %}active{% endif %}"
+               href="{{ url_for('participants.register_individual') }}">
+          <i class="bi bi-person-plus"></i> Register Individual</a></li>
+        <li><a class="nav-link {% if request.endpoint == 'participants.register_group' %}active{% endif %}"
+               href="{{ url_for('participants.register_group') }}">
+          <i class="bi bi-people-fill"></i> Register Group</a></li>
+      </ul>
+
+      <div class="sidebar-section">On the Day</div>
+      <ul class="nav flex-column">
+        <li><a class="nav-link {% if 'schedule' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('schedule.index') }}">
+          <i class="bi bi-calendar3"></i> Schedule</a></li>
+        <li><a class="nav-link {% if 'scores' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('scores.index') }}">
+          <i class="bi bi-pencil-square"></i> Score Entry</a></li>
+        <li><a class="nav-link {% if 'results' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('results.index') }}">
+          <i class="bi bi-bar-chart"></i> Results & Awards</a></li>
+      </ul>
+
+      <div class="sidebar-section">Print</div>
+      <ul class="nav flex-column">
+        <li><a class="nav-link {% if 'scoresheets' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('scoresheets.index') }}">
+          <i class="bi bi-file-ruled"></i> Judge Score Sheets</a></li>
+        <li><a class="nav-link {% if 'certificates' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('certificates.index') }}">
+          <i class="bi bi-award"></i> Certificates</a></li>
+      </ul>
+
+      <div class="sidebar-section">Data</div>
+      <ul class="nav flex-column">
+        <li><a class="nav-link {% if 'data' in request.endpoint %}active{% endif %}"
+               href="{{ url_for('data.index') }}">
+          <i class="bi bi-database"></i> Backup / Restore</a></li>
+      </ul>
+
+      {% endif %}{# end is_admin else #}
+    </nav>
+    {% endif %}{# end sidebar visibility #}
+
+    <!-- Main content -->
+    {% set show_sidebar = is_admin or request.endpoint in ('participants.register_individual', 'participants.register_group') %}
+    <main class="{{ 'col-md-10' if show_sidebar else 'col-12' }} main-content">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

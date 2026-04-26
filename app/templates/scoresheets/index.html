@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Judge Score Sheets{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-file-ruled me-2"></i>Judge Score Sheets</h2>
+  <p class="text-muted">Generate PDF score sheets for each event. Items with both male and female entries produce separate sheets.</p>
+</div>
+
+{% if grouped %}
+{% for cat, items in grouped %}
+<h5 class="mt-4 mb-2 text-muted">{{ cat }}</h5>
+<div class="row g-2">
+  {% for item in items %}
+  {% set entry_count = item.entries|length %}
+  {% set genders = item_genders[item.id] %}
+  <div class="col-md-4">
+    <div class="card p-3">
+      <div class="mb-2">
+        <div class="fw-semibold">{{ item.name }}</div>
+        <div class="text-muted small">
+          {{ item.category }} &nbsp;|&nbsp; {{ item.item_type }} &nbsp;|&nbsp;
+          {{ entry_count }} entr{{ 'y' if entry_count == 1 else 'ies' }}
+          {% if item.gender_restriction %}
+          &nbsp;|&nbsp; <span class="badge bg-warning text-dark">{{ item.gender_restriction }} only</span>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if 'Male' in genders and 'Female' in genders %}
+      {# Both genders registered — separate sheets #}
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('scoresheets.generate', item_id=item.id, gender='Male') }}"
+           class="btn btn-outline-primary btn-sm flex-fill" target="_blank">
+          <i class="bi bi-printer me-1"></i>Male
+        </a>
+        <a href="{{ url_for('scoresheets.generate', item_id=item.id, gender='Female') }}"
+           class="btn btn-outline-danger btn-sm flex-fill" target="_blank">
+          <i class="bi bi-printer me-1"></i>Female
+        </a>
+      </div>
+      {% else %}
+      {# Single gender or restricted item #}
+      <a href="{{ url_for('scoresheets.generate', item_id=item.id) }}"
+         class="btn btn-outline-primary btn-sm w-100" target="_blank">
+        <i class="bi bi-printer me-1"></i>
+        Print
+        {% if 'Female' in genders %} (Female){% elif 'Male' in genders %} (Male){% endif %}
+      </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+{% else %}
+<div class="alert alert-info">
+  No entries registered yet. Register participants and enrol them in events first.
+</div>
+{% endif %}
+{% endblock %}

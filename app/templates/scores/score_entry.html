@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% block title %}Score — {{ entry.display_name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h2><i class="bi bi-pencil-square me-2"></i>Score Entry</h2>
+    <p class="text-muted mb-0">
+      <strong>#{{ entry.chest_number }} {{ entry.display_name }}</strong>
+      &nbsp;|&nbsp; {{ item.name }} ({{ item.category }})
+    </p>
+  </div>
+  <a href="{{ url_for('scores.event_entries', item_id=item.id) }}"
+     class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back
+  </a>
+</div>
+
+<form method="post" id="scoreForm">
+  {# Hidden judge-active inputs so an unchecked checkbox still registers as inactive #}
+  {% for j in judges %}
+  <input type="hidden" name="judge_{{ j }}_active_hidden" value="0">
+  {% endfor %}
+
+  <div class="card mb-3">
+    <div class="table-responsive">
+      <table class="table table-bordered mb-0" id="scoreTable">
+        <thead class="table-dark">
+          <tr>
+            <th>Criteria</th>
+            <th class="text-center">Max</th>
+            {% for j in judges %}
+            {% set j_active = j in active_judges %}
+            {% set j_colors = {1: '#ffc107', 2: '#0dcaf0', 3: '#20c997'} %}
+            <th class="text-center judge-col-header" data-judge="{{ j }}">
+              <div style="color: {{ j_colors[j] }} !important">Judge {{ j }}</div>
+              <div class="form-check form-check-inline mt-1 mb-0">
+                <input class="form-check-input judge-toggle" type="checkbox"
+                       name="judge_{{ j }}_active" value="1"
+                       id="judge_{{ j }}_active"
+                       data-judge="{{ j }}"
+                       {{ 'checked' if j_active }}>
+                <label class="form-check-label small fw-normal" for="judge_{{ j }}_active">
+                  Present
+                </label>
+              </div>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in criteria %}
+          {% set c_idx = loop.index %}
+          <tr>
+            <td>{{ c.name }}</td>
+            <td class="text-center text-muted">{{ c.max_marks }}</td>
+            {% for j in judges %}
+            {% set j_active = j in active_judges %}
+            <td class="text-center p-1 judge-col" data-judge="{{ j }}"
+                {% if not j_active %}style="background:#f8f9fa;opacity:.5"{% endif %}>
+              <input type="number"
+                     name="j{{ j }}_c{{ c.id }}"
+                     class="form-control form-control-sm text-center score-input"
+                     data-max="{{ c.max_marks }}"
+                     data-judge="{{ j }}"
+                     tabindex="{{ (loop.index0) * (criteria | length) + c_idx }}"
+                     min="0" max="{{ c.max_marks }}" step="0.5"
+                     value="{{ score_map.get(j, {}).get(c.id, 0) }}"
+                     style="width:70px;margin:auto"
+                     {{ 'disabled' if not j_active }}>
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light fw-semibold">
+          <tr>
+            <td>TOTAL</td>
+            <td class="text-center">{{ item.max_marks_per_judge }}</td>
+            {% for j in judges %}
+            <td class="text-center judge-col" data-judge="{{ j }}" id="total_j{{ j }}">
+              {{ '%.1f' % entry.judge_total(j) if j in active_judges else '—' }}
+            </td>
+            {% endfor %}
+          </tr>
+          <tr class="table-warning">
+            <td colspan="2" class="fw-bold">FINAL SCORE</td>
+            <td colspan="{{ judges | length }}" class="text-center fw-bold fs-5" id="finalScore">
+              {{ '%.1f' % entry.final_score }}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="row g-3 align-items-end mb-3">
+    <div class="col-md-6">
+      <label class="form-label text-muted small">Reason for edit (optional — shown in audit log)</label>
+      <input type="text" name="edit_reason" class="form-control" placeholder="e.g. Typo correction">
+    </div>
+  </div>
+
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="bi bi-save me-1"></i>Save Scores
+    </button>
+    <a href="{{ url_for('scores.review_entry', entry_id=entry.id) }}"
+       class="btn btn-outline-secondary">
+      <i class="bi bi-clock-history me-1"></i>View Audit Log
+    </a>
+    <a href="{{ url_for('scores.event_entries', item_id=item.id) }}"
+       class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const judgeNums = {{ judges | tojson }};
+
+function recalc() {
+  let grandTotal = 0;
+  for (const j of judgeNums) {
+    const active = document.getElementById(`judge_${j}_active`).checked;
+    const totalEl = document.getElementById(`total_j${j}`);
+    if (!active) {
+      totalEl.textContent = '—';
+      continue;
+    }
+    let jTotal = 0;
+    document.querySelectorAll(`.score-input[data-judge="${j}"]`).forEach(el => {
+      jTotal += parseFloat(el.value) || 0;
+    });
+    totalEl.textContent = jTotal.toFixed(1);
+    grandTotal += jTotal;
+  }
+  document.getElementById('finalScore').textContent = grandTotal.toFixed(1);
+}
+
+function setJudgeActive(judgeNum, active) {
+  document.querySelectorAll(`.score-input[data-judge="${judgeNum}"]`).forEach(el => {
+    el.disabled = !active;
+    const cell = el.closest('td');
+    if (active) {
+      cell.style.background = '';
+      cell.style.opacity = '';
+    } else {
+      cell.style.background = '#f8f9fa';
+      cell.style.opacity = '0.5';
+    }
+  });
+  recalc();
+}
+
+// Judge present/absent toggles
+document.querySelectorAll('.judge-toggle').forEach(cb => {
+  cb.addEventListener('change', function() {
+    setJudgeActive(parseInt(this.dataset.judge), this.checked);
+  });
+});
+
+// Score validation and live totals
+document.querySelectorAll('.score-input').forEach(el => {
+  el.addEventListener('input', function() {
+    const max = parseFloat(this.dataset.max);
+    if (parseFloat(this.value) > max) {
+      this.value = max;
+      this.classList.add('is-invalid');
+    } else {
+      this.classList.remove('is-invalid');
+    }
+    recalc();
+  });
+
+  // Tab and Enter move to next field within the same judge column
+  el.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      const currentTab = parseInt(this.getAttribute('tabindex'));
+      // Find next enabled input
+      let nextTab = currentTab + 1;
+      let next = null;
+      while (nextTab <= {{ criteria|length * judges|length }}) {
+        const candidate = document.querySelector(`.score-input[tabindex="${nextTab}"]`);
+        if (candidate && !candidate.disabled) { next = candidate; break; }
+        nextTab++;
+      }
+      if (next) { next.focus(); next.select(); }
+    }
+  });
+});
+
+recalc();
+
+// Zero-score validation on submit
+document.getElementById('scoreForm').addEventListener('submit', function(e) {
+  // Clear previous zero highlights
+  document.querySelectorAll('.score-input').forEach(el => el.classList.remove('border-warning', 'border-danger'));
+
+  const allZeroJudges = [];
+  const someZeroJudges = [];
+
+  for (const j of judgeNums) {
+    const active = document.getElementById(`judge_${j}_active`).checked;
+    if (!active) continue;
+
+    const inputs = [...document.querySelectorAll(`.score-input[data-judge="${j}"]`)];
+    const zeros = inputs.filter(el => (parseFloat(el.value) || 0) === 0);
+
+    if (zeros.length === inputs.length) {
+      allZeroJudges.push(j);
+      zeros.forEach(el => el.classList.add('border-danger'));
+    } else if (zeros.length > 0) {
+      someZeroJudges.push(j);
+      zeros.forEach(el => el.classList.add('border-warning'));
+    }
+  }
+
+  if (allZeroJudges.length > 0) {
+    e.preventDefault();
+    const names = allZeroJudges.map(j => `Judge ${j}`).join(', ');
+    alert(`${names}: all scores are 0. Mark the judge as absent or enter actual scores.`);
+    return;
+  }
+
+  if (someZeroJudges.length > 0) {
+    const names = someZeroJudges.map(j => `Judge ${j}`).join(', ');
+    const ok = confirm(`Warning: ${names} has one or more scores of 0. Are you sure you want to save?`);
+    if (!ok) {
+      e.preventDefault();
+    }
+  }
+});
+</script>
+{% endblock %}

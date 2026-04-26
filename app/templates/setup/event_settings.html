@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Event Settings{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-gear me-2"></i>Event Settings</h2>
+</div>
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card p-4">
+      <h6 class="fw-semibold mb-3">Event Details</h6>
+      <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Event Name</label>
+          <input type="text" name="event_name" class="form-control"
+                 value="{{ cfg.event_name }}" required>
+          <div class="form-text">e.g. LKC Kalamela 2026</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Event Date</label>
+          <input type="date" name="event_date" class="form-control"
+                 value="{{ cfg.event_date.isoformat() if cfg.event_date else '' }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Venue</label>
+          <input type="text" name="venue" class="form-control"
+                 value="{{ cfg.venue or '' }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Default Number of Judges</label>
+          <select name="default_num_judges" class="form-select" style="max-width:180px">
+            {% for n in [1, 2, 3] %}
+            <option value="{{ n }}"
+              {{ 'selected' if cfg.default_num_judges == n else ('selected' if not cfg.default_num_judges and n == 3) }}>
+              {{ n }} judge{{ '' if n == 1 else 's' }}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Applies to all items unless overridden per item.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Blank rows on score sheets</label>
+          <input type="number" name="scoresheet_blank_rows" class="form-control"
+                 value="{{ cfg.scoresheet_blank_rows }}" min="0" max="10">
+          <div class="form-text">Extra rows at the bottom for late registrations.</div>
+        </div>
+
+        <hr>
+        <h6 class="fw-semibold mb-3">Welcome Page</h6>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Tagline</label>
+          <input type="text" name="welcome_tagline" class="form-control"
+                 value="{{ cfg.welcome_tagline or '' }}"
+                 placeholder="e.g. Celebrating Arts & Culture">
+          <div class="form-text">Shown below the event name on the welcome page.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Event Logo</label>
+          {% if cfg.welcome_logo %}
+          <div class="mb-2 d-flex align-items-center gap-3">
+            <img src="{{ url_for('static', filename='uploads/' + cfg.welcome_logo) }}"
+                 alt="Logo" style="max-height:80px;max-width:200px;object-fit:contain"
+                 class="border rounded p-1 bg-white">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="remove_logo" value="1" id="removeLogo">
+              <label class="form-check-label text-danger" for="removeLogo">Remove logo</label>
+            </div>
+          </div>
+          {% endif %}
+          <input type="file" name="welcome_logo" class="form-control"
+                 accept=".png,.jpg,.jpeg,.gif,.svg,.webp">
+          <div class="form-text">PNG, JPG, SVG or WebP. Displayed on the public welcome page.</div>
+        </div>
+
+        <button class="btn btn-primary">Save Settings</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Review — {{ entry.display_name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h2><i class="bi bi-eye me-2"></i>Score Review</h2>
+    <p class="text-muted mb-0">
+      <strong>#{{ entry.chest_number }} {{ entry.display_name }}</strong>
+      &nbsp;|&nbsp; {{ item.name }} ({{ item.category }})
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('scores.score_entry', entry_id=entry.id) }}" class="btn btn-primary">
+      <i class="bi bi-pencil me-1"></i>Edit Scores
+    </a>
+    <a href="{{ url_for('scores.event_entries', item_id=item.id) }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="table-responsive">
+    <table class="table table-bordered mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>Criteria</th>
+          <th class="text-center">Max</th>
+          <th class="text-center text-warning">Judge 1</th>
+          <th class="text-center text-info">Judge 2</th>
+          <th class="text-center text-success">Judge 3</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in criteria %}
+        <tr>
+          <td>{{ c.name }}</td>
+          <td class="text-center text-muted">{{ c.max_marks }}</td>
+          {% for j in [1,2,3] %}
+          <td class="text-center">
+            {{ score_map.get(j, {}).get(c.id, '—') }}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="table-light fw-semibold">
+        <tr>
+          <td>TOTAL</td>
+          <td class="text-center">{{ item.max_marks_per_judge }}</td>
+          {% for j in [1,2,3] %}
+          <td class="text-center">{{ '%.1f' % entry.judge_total(j) }}</td>
+          {% endfor %}
+        </tr>
+        <tr class="table-warning">
+          <td colspan="2" class="fw-bold">FINAL SCORE</td>
+          <td colspan="3" class="text-center fw-bold fs-5">{{ '%.1f' % entry.final_score }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<h5 class="mb-3"><i class="bi bi-clock-history me-2"></i>Audit Log</h5>
+{% if audit_logs %}
+<div class="card">
+  <table class="table table-sm mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Timestamp</th><th>Judge</th><th>Criteria</th>
+        <th>Old Value</th><th>New Value</th><th>Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in audit_logs %}
+      <tr>
+        <td class="text-muted small">{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+        <td>Judge {{ log.judge_number }}</td>
+        <td>{{ log.criteria_rel.name }}</td>
+        <td class="text-danger">{{ log.old_value }}</td>
+        <td class="text-success">{{ log.new_value }}</td>
+        <td class="text-muted">{{ log.reason or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-info">No edits recorded for this entry.</div>
+{% endif %}
+{% endblock %}

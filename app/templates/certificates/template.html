@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Certificate Template{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2><i class="bi bi-palette me-2"></i>Certificate Template Setup</h2>
+  <a href="{{ url_for('certificates.index') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back
+  </a>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card p-4">
+      <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Background / Banner Image</label>
+          {% if cfg and cfg.cert_bg_image %}
+          <div class="mb-2">
+            <span class="badge bg-success me-2">Current: {{ cfg.cert_bg_image }}</span>
+            <label>
+              <input type="checkbox" name="remove_bg" value="1"> Remove image
+            </label>
+          </div>
+          {% endif %}
+          <input type="file" name="bg_image" class="form-control" accept=".png,.jpg,.jpeg">
+          <div class="form-text">PNG or JPG. Will be stretched to A4 landscape. Ideal size: 297×210mm.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Certificate Title</label>
+          <input type="text" name="cert_title_text" class="form-control"
+                 value="{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}">
+          <div class="form-text">e.g. "Certificate of Achievement", "Certificate of Merit"</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Text Colour</label>
+          <input type="color" name="cert_font_colour" class="form-control form-control-color"
+                 value="{{ cfg.cert_font_colour if cfg else '#1a1a2e' }}">
+        </div>
+
+        <div class="alert alert-info small">
+          <strong>Certificate fields auto-populated:</strong><br>
+          Event name, Participant / Group name, Competition item, Age category, Position, Date.
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Template</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card p-4 bg-light">
+      <h6 class="fw-semibold mb-3">Certificate Preview (default design)</h6>
+      <div class="border rounded p-3 bg-white text-center" style="font-family:serif;">
+        <div class="text-muted small">Association Kalamela Management System</div>
+        <div class="text-muted small mb-2">LKC Kalamela 2026</div>
+        <h4 class="fw-bold">Certificate of Achievement</h4>
+        <hr>
+        <p class="mb-1">This is to certify that</p>
+        <h5 class="fw-bold text-warning">Participant Name</h5>
+        <p class="mb-1">has achieved <strong>1st Prize</strong> in</p>
+        <h6 class="fw-bold">Folk Dance — Junior</h6>
+        <p class="text-muted small">at LKC Kalamela 2026 on 01 May 2026</p>
+        <div class="d-flex justify-content-around mt-3 text-muted small">
+          <div>______________<br>Organiser</div>
+          <div>______________<br>Chairperson</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

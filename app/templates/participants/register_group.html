@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block title %}Register Group{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-people-fill me-2"></i>Register Group</h2>
+</div>
+
+{% if warnings %}
+<div class="alert alert-warning">
+  <strong>Eligibility Warnings:</strong>
+  <ul class="mb-2">{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card p-4">
+      <form method="post" id="groupForm">
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Group Name *</label>
+            <input type="text" name="group_name" class="form-control"
+                   value="{{ form_data.get('group_name','') }}" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Event *</label>
+            <select name="item_id" class="form-select" required id="itemSelect">
+              <option value="">Select event...</option>
+              {% for item in items %}
+              <option value="{{ item.id }}"
+                      data-min="{{ item.min_members or 0 }}"
+                      data-max="{{ item.max_members or 99 }}"
+                      data-gender="{{ item.gender_restriction or '' }}"
+                      {{ 'selected' if form_data.get('item_id')|string == item.id|string }}>
+                {{ item.name }} ({{ item.category }})
+                {% if item.min_members %} — {{ item.min_members }}–{{ item.max_members }} members{% endif %}
+                {% if item.gender_restriction %} [{{ item.gender_restriction }} only]{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div id="itemInfo" class="alert alert-info d-none mb-3"></div>
+
+        <label class="form-label fw-semibold">Add Members by LKC ID</label>
+        <div class="input-group mb-2" style="max-width:340px">
+          <input type="text" id="lkcIdInput" class="form-control" placeholder="e.g. LKC101"
+                 autocomplete="off">
+          <button type="button" class="btn btn-outline-primary" id="addMemberBtn">
+            <i class="bi bi-plus-lg"></i> Add
+          </button>
+        </div>
+        <div id="lookupMsg" class="text-danger small mb-2 d-none"></div>
+
+        <div id="memberList" class="list-group mb-2"></div>
+        <div id="memberCount" class="text-muted small mb-3">0 member(s) added</div>
+        <div id="memberInputs"></div>
+
+        {% if warnings %}
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" name="override_warnings" value="1" id="override">
+          <label class="form-check-label text-danger fw-semibold" for="override">
+            Override warnings and register anyway
+          </label>
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-success">Register Group</button>
+          <a href="{{ url_for('participants.list_groups') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Preload members when re-displaying form after a warning #}
+<script id="preloadData" type="application/json">{{ selected_members | tojson }}</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const itemSelect = document.getElementById('itemSelect');
+const itemInfo = document.getElementById('itemInfo');
+const lkcIdInput = document.getElementById('lkcIdInput');
+const addMemberBtn = document.getElementById('addMemberBtn');
+const lookupMsg = document.getElementById('lookupMsg');
+const memberList = document.getElementById('memberList');
+const memberCount = document.getElementById('memberCount');
+const memberInputs = document.getElementById('memberInputs');
+
+// Map of id -> member object for added members
+const members = {};
+
+function updateInfo() {
+  const opt = itemSelect.options[itemSelect.selectedIndex];
+  if (!opt.value) { itemInfo.classList.add('d-none'); return; }
+  const min = opt.dataset.min, max = opt.dataset.max, gender = opt.dataset.gender;
+  let msg = `Members: ${min || 1}–${max || '∞'}`;
+  if (gender) msg += ` &nbsp;|&nbsp; <strong>${gender} only</strong>`;
+  itemInfo.innerHTML = msg;
+  itemInfo.classList.remove('d-none');
+}
+
+function renderMembers() {
+  memberList.innerHTML = '';
+  memberInputs.innerHTML = '';
+  const list = Object.values(members);
+  list.forEach(m => {
+    const item = document.createElement('div');
+    item.className = 'list-group-item d-flex justify-content-between align-items-center';
+    item.innerHTML =
+      `<span><strong>#${m.chest_number}</strong> — ${m.full_name}
+       <span class="text-muted">(${m.category}, ${m.gender})</span></span>
+       <button type="button" class="btn btn-sm btn-outline-danger" data-id="${m.id}">
+         <i class="bi bi-x"></i>
+       </button>`;
+    item.querySelector('button').addEventListener('click', () => {
+      delete members[m.id];
+      renderMembers();
+    });
+    memberList.appendChild(item);
+
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.name = 'members[]';
+    hidden.value = m.id;
+    memberInputs.appendChild(hidden);
+  });
+  memberCount.textContent = `${list.length} member(s) added`;
+}
+
+function addMember() {
+  const lkcId = lkcIdInput.value.trim();
+  if (!lkcId) return;
+  lookupMsg.classList.add('d-none');
+
+  fetch(`/participants/api/by-lkc-id?id=${encodeURIComponent(lkcId)}`)
+    .then(r => r.json())
+    .then(d => {
+      if (!d.found) {
+        lookupMsg.textContent = `No participant found with LKC ID "${lkcId}".`;
+        lookupMsg.classList.remove('d-none');
+        return;
+      }
+      if (members[d.id]) {
+        lookupMsg.textContent = `${d.full_name} is already added.`;
+        lookupMsg.classList.remove('d-none');
+        return;
+      }
+      members[d.id] = d;
+      lkcIdInput.value = '';
+      renderMembers();
+    });
+}
+
+addMemberBtn.addEventListener('click', addMember);
+lkcIdInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addMember(); } });
+itemSelect.addEventListener('change', updateInfo);
+
+// Pre-populate members from server (warning re-display)
+const preload = JSON.parse(document.getElementById('preloadData').textContent || '[]');
+preload.forEach(m => { members[m.id] = m; });
+
+updateInfo();
+renderMembers();
+</script>
+{% endblock %}

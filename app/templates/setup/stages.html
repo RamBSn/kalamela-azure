@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% block title %}Stages{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2><i class="bi bi-layout-split me-2"></i>Stages</h2>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Add Stage</h6>
+      <form method="post">
+        <div class="input-group">
+          <input type="text" name="name" class="form-control" placeholder="e.g. Stage A" required>
+          <button class="btn btn-primary" type="submit">Add</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if stages %}
+<div class="row g-3">
+  {% for stage in stages %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+
+        {# Inline rename form #}
+        <form method="post" action="{{ url_for('setup.edit_stage', stage_id=stage.id) }}"
+              class="d-flex gap-2 align-items-center flex-grow-1 me-2">
+          <input type="text" name="name" class="form-control form-control-sm"
+                 value="{{ stage.name }}" style="max-width:160px">
+          <button class="btn btn-sm btn-outline-secondary">Save</button>
+        </form>
+
+        <form method="post" action="{{ url_for('setup.delete_stage', stage_id=stage.id) }}"
+              onsubmit="return confirm('Delete stage {{ stage.name }}? Entries will become unassigned.')">
+          <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+        </form>
+      </div>
+
+      <div class="card-body p-2">
+
+        {# Assigned items #}
+        {% set assigned = stage_items[stage.id] %}
+        {% if assigned %}
+        <p class="text-muted small px-2 mb-1">
+          {{ stage.entries | length }} entr{{ 'y' if stage.entries | length == 1 else 'ies' }}
+          across {{ assigned | length }} item{{ '' if assigned | length == 1 else 's' }}
+        </p>
+        <ul class="list-group list-group-flush mb-2">
+          {% for item in assigned %}
+          {% set entry_count = stage.entries | selectattr('item_id', 'equalto', item.id) | list | length %}
+          <li class="list-group-item d-flex justify-content-between align-items-center px-2 py-1">
+            <span class="small">
+              <span class="badge {% if item.item_type=='solo' %}bg-primary{% else %}bg-success{% endif %} me-1">
+                {{ item.item_type }}</span>
+              {{ item.name }}
+              <span class="text-muted">({{ item.category }})</span>
+            </span>
+            <span class="d-flex align-items-center gap-1">
+              <span class="badge bg-secondary">{{ entry_count }}</span>
+              <form method="post"
+                    action="{{ url_for('setup.remove_item_from_stage', stage_id=stage.id) }}"
+                    onsubmit="return confirm('Remove {{ item.name }} from {{ stage.name }}?')">
+                <input type="hidden" name="item_id" value="{{ item.id }}">
+                <button class="btn btn-sm btn-link text-danger p-0">
+                  <i class="bi bi-x-circle"></i>
+                </button>
+              </form>
+            </span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted small px-2 mb-2">No items assigned yet.</p>
+        {% endif %}
+
+        {# Assign items form #}
+        {% set available = stage_available_items[stage.id] %}
+        {% if available %}
+        <div class="border-top pt-2 px-2">
+          <form method="post"
+                action="{{ url_for('setup.assign_items_to_stage', stage_id=stage.id) }}">
+            <label class="form-label small fw-semibold mb-1">Assign items to this stage</label>
+            <div class="mb-2" style="max-height:180px;overflow-y:auto;border:1px solid #dee2e6;border-radius:4px;padding:6px">
+              {% for item in available %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox"
+                       name="item_ids[]" value="{{ item.id }}"
+                       id="item_{{ stage.id }}_{{ item.id }}">
+                <label class="form-check-label small" for="item_{{ stage.id }}_{{ item.id }}">
+                  {{ item.name }}
+                  <span class="text-muted">({{ item.category }})</span>
+                  <span class="badge {% if item.item_type=='solo' %}bg-primary{% else %}bg-success{% endif %}">
+                    {{ item.item_type }}</span>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+            <button class="btn btn-sm btn-success w-100">
+              <i class="bi bi-plus-lg me-1"></i>Assign Selected
+            </button>
+          </form>
+        </div>
+        {% else %}
+        <p class="text-muted small px-2 pt-2 border-top mb-0">
+          <i class="bi bi-check-circle-fill text-success me-1"></i>All items with entries are assigned.
+        </p>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">No stages yet. Add one above to get started.</div>
+{% endif %}
+{% endblock %}

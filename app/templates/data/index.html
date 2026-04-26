@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Data Management{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-database me-2"></i>Data Management</h2>
+</div>
+
+<div class="row g-4">
+
+  <!-- Backup -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-cloud-download me-2"></i>Backup
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">Save a copy of the current database to the backups folder.</p>
+        <form method="post" action="{{ url_for('data.backup') }}">
+          <button class="btn btn-primary">
+            <i class="bi bi-save me-1"></i>Create Backup Now
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Restore -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-cloud-upload me-2"></i>Restore from Backup
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          Upload a .db backup file to restore all data.
+          An automatic backup is created before restoring.
+        </p>
+        <form method="post" action="{{ url_for('data.restore') }}" enctype="multipart/form-data">
+          <div class="input-group">
+            <input type="file" name="backup_file" class="form-control" accept=".db" required>
+            <button class="btn btn-warning">Restore</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset -->
+  <div class="col-md-6">
+    <div class="card h-100 border-danger">
+      <div class="card-header fw-semibold text-danger">
+        <i class="bi bi-trash me-2"></i>Reset Data
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">
+          Clears <strong>all participants, groups, entries, and scores</strong>.
+          Event settings, stages, and competition items are <strong>preserved</strong>.
+          An automatic backup is created before resetting.
+        </p>
+        <form method="post" action="{{ url_for('data.reset') }}"
+              onsubmit="return confirm('This will delete all participant and score data. A backup will be made first. Continue?')">
+          <div class="input-group mb-2">
+            <input type="text" name="confirm_reset" class="form-control"
+                   placeholder="Type RESET to confirm">
+            <button class="btn btn-danger">Reset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">
+        <i class="bi bi-file-earmark-arrow-down me-2"></i>Export Data
+      </div>
+      <div class="card-body">
+        <p class="text-muted small">Export all data for records or external use.</p>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('data.export_data') }}?format=json"
+             class="btn btn-outline-secondary">
+            <i class="bi bi-filetype-json me-1"></i>Export JSON
+          </a>
+          <a href="{{ url_for('data.export_data') }}?format=csv"
+             class="btn btn-outline-secondary">
+            <i class="bi bi-filetype-csv me-1"></i>Export Participants CSV
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Backup list -->
+{% if backups %}
+<h5 class="mt-4 mb-3">Saved Backups ({{ backups|length }})</h5>
+<div class="card">
+  <table class="table table-sm mb-0">
+    <thead class="table-light">
+      <tr><th>Filename</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for b in backups %}
+      <tr>
+        <td>{{ b }}</td>
+        <td class="text-end">
+          <a href="{{ url_for('data.download_backup', filename=b) }}"
+             class="btn btn-sm btn-outline-primary me-1">
+            <i class="bi bi-download"></i> Download
+          </a>
+          <form method="post" action="{{ url_for('data.delete_backup', filename=b) }}"
+                class="d-inline" onsubmit="return confirm('Delete {{ b }}?')">
+            <button class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-info mt-4">No backups yet.</div>
+{% endif %}
+{% endblock %}

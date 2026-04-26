@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}{{ stage.name }} — Live View{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2><i class="bi bi-layout-split me-2"></i>{{ stage.name }} — Running Order</h2>
+  <a href="{{ url_for('schedule.index') }}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back
+  </a>
+</div>
+
+{% if entries %}
+<div class="card">
+  <table class="table table-hover mb-0">
+    <thead class="table-light">
+      <tr>
+        <th style="width:60px">Order</th>
+        <th>Chest #</th>
+        <th>Name / Group</th>
+        <th>Event</th>
+        <th>Category</th>
+        <th>Status</th>
+        <th>Actions</th>
+        <th>Reorder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in entries %}
+      <tr class="{% if e.status=='performing' %}table-primary{% elif e.status=='completed' %}table-success{% endif %}">
+        <td class="text-muted fw-semibold">{{ e.running_order }}</td>
+        <td><strong>#{{ e.chest_number }}</strong></td>
+        <td>{{ e.display_name }}</td>
+        <td>{{ e.competition_item.name }}</td>
+        <td><span class="badge bg-secondary">{{ e.competition_item.category }}</span></td>
+        <td>
+          <span class="badge
+            {% if e.status=='completed' %}bg-success
+            {% elif e.status=='performing' %}bg-primary
+            {% else %}bg-secondary{% endif %}">
+            {{ e.status }}
+          </span>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('schedule.update_status', entry_id=e.id) }}"
+                class="d-flex gap-1">
+            {% if e.status == 'waiting' %}
+            <input type="hidden" name="status" value="performing">
+            <button class="btn btn-sm btn-primary">Start</button>
+            {% elif e.status == 'performing' %}
+            <input type="hidden" name="status" value="completed">
+            <button class="btn btn-sm btn-success">Complete</button>
+            {% else %}
+            <input type="hidden" name="status" value="waiting">
+            <button class="btn btn-sm btn-outline-secondary">Reset</button>
+            {% endif %}
+          </form>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('schedule.reorder', entry_id=e.id) }}"
+                class="d-inline">
+            <input type="hidden" name="direction" value="up">
+            <button class="btn btn-sm btn-outline-secondary py-0">
+              <i class="bi bi-arrow-up"></i>
+            </button>
+          </form>
+          <form method="post" action="{{ url_for('schedule.reorder', entry_id=e.id) }}"
+                class="d-inline">
+            <input type="hidden" name="direction" value="down">
+            <button class="btn btn-sm btn-outline-secondary py-0">
+              <i class="bi bi-arrow-down"></i>
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-info">No entries assigned to this stage yet.</div>
+{% endif %}
+{% endblock %}

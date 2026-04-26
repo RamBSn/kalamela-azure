@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}{{ item.name }} — Results{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <div>
+    <h2><i class="bi bi-trophy me-2"></i>{{ item.name }}</h2>
+    <p class="text-muted mb-0">{{ item.category }} &nbsp;|&nbsp; {{ item.item_type }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('results.live', item_id=item.id) }}"
+       class="btn btn-outline-primary" target="_blank">
+      <i class="bi bi-broadcast me-1"></i>Live View
+    </a>
+    <a href="{{ url_for('results.index') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
+</div>
+
+{% if ranked %}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Final Results</div>
+  <table class="table table-hover mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Position</th><th>Chest #</th><th>Name</th>
+        <th>Judge 1</th><th>Judge 2</th><th>Judge 3</th><th>Final Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in ranked %}
+      <tr class="{% if r.position==1 %}table-warning{% elif r.position==2 %}table-light{% endif %}">
+        <td>
+          {% if r.position == 1 %}<span class="fs-5">🥇</span>
+          {% elif r.position == 2 %}<span class="fs-5">🥈</span>
+          {% elif r.position == 3 %}<span class="fs-5">🥉</span>
+          {% else %}{{ r.position }}{% endif %}
+        </td>
+        <td><strong>#{{ r.entry.chest_number }}</strong></td>
+        <td>{{ r.entry.display_name }}</td>
+        <td>{{ '%.1f' % r.entry.judge_total(1) }}</td>
+        <td>{{ '%.1f' % r.entry.judge_total(2) }}</td>
+        <td>{{ '%.1f' % r.entry.judge_total(3) }}</td>
+        <td><strong>{{ '%.1f' % r.score }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-warning">No complete scores yet for this event.</div>
+{% endif %}
+
+{% if all_entries %}
+<h5 class="mb-3">All Entries ({{ all_entries|length }})</h5>
+<div class="card">
+  <table class="table table-sm mb-0">
+    <thead class="table-light">
+      <tr><th>Chest #</th><th>Name</th><th>Score</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for e in all_entries %}
+      <tr>
+        <td>#{{ e.chest_number }}</td>
+        <td>{{ e.display_name }}</td>
+        <td>{{ '%.1f' % e.final_score if e.scores_complete() else '—' }}</td>
+        <td>
+          <span class="badge {{ 'bg-success' if e.scores_complete() else 'bg-warning text-dark' }}">
+            {{ 'Scored' if e.scores_complete() else 'Pending' }}
+          </span>
+        </td>
+        <td>
+          <a href="{{ url_for('scores.score_entry', entry_id=e.id) }}"
+             class="btn btn-sm btn-outline-secondary">Score</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

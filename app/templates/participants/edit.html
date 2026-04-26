@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Edit {{ participant.full_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h2><i class="bi bi-pencil me-2"></i>Edit Participant — {{ participant.full_name }}</h2>
+  <span class="badge bg-secondary fs-6">Chest #{{ participant.chest_number }}</span>
+</div>
+<div class="row">
+  <div class="col-md-8">
+    <div class="card p-4">
+      <form method="post">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Full Name *</label>
+            <input type="text" name="full_name" class="form-control"
+                   value="{{ participant.full_name }}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Date of Birth *</label>
+            <input type="date" name="date_of_birth" id="dobInput" class="form-control"
+                   value="{{ participant.date_of_birth.isoformat() }}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Category</label>
+            <input type="text" id="categoryDisplay" class="form-control bg-light" readonly
+                   value="{{ participant.category }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Gender *</label>
+            <select name="gender" class="form-select" required>
+              <option value="Male" {{ 'selected' if participant.gender=='Male' }}>Male</option>
+              <option value="Female" {{ 'selected' if participant.gender=='Female' }}>Female</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">LKC ID *</label>
+            <input type="text" name="lkc_id" class="form-control" value="{{ participant.lkc_id }}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Phone *</label>
+            <input type="text" name="phone" class="form-control" value="{{ participant.phone }}" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ participant.email or '' }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Parent / Guardian Name</label>
+            <input type="text" name="parent_name" class="form-control"
+                   value="{{ participant.parent_name or '' }}">
+          </div>
+        </div>
+
+        <hr class="my-4">
+        <h6 class="fw-semibold mb-3">Events</h6>
+        {% set cat_order = ['Kids','Sub-Junior','Junior','Senior','Super Senior','Common'] %}
+        {% for cat in cat_order %}
+          {% set cat_items = items | selectattr('category','equalto',cat) | list %}
+          {% if cat_items %}
+          <h6 class="text-muted mt-3">{{ cat }}</h6>
+          <div class="row g-2">
+            {% for item in cat_items %}
+            <div class="col-md-6">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="items[]"
+                       value="{{ item.id }}" id="item_{{ item.id }}"
+                       {{ 'checked' if item.id in enrolled_ids }}>
+                <label class="form-check-label" for="item_{{ item.id }}">
+                  {{ item.name }}
+                  <span class="badge {% if item.item_type=='solo' %}bg-primary{% else %}bg-success{% endif %}">
+                    {{ item.item_type }}</span>
+                </label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% endfor %}
+
+        <div class="mt-4 d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <a href="{{ url_for('participants.list_participants') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('dobInput').addEventListener('change', function() {
+  fetch(`/participants/api/category-from-dob?dob=${this.value}`)
+    .then(r => r.json())
+    .then(d => { document.getElementById('categoryDisplay').value = d.category || ''; });
+});
+</script>
+{% endblock %}

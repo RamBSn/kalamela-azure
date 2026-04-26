@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Certificates{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2><i class="bi bi-award me-2"></i>Certificates</h2>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('certificates.template_setup') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-palette me-1"></i>Template Setup
+    </a>
+    <a href="{{ url_for('certificates.award_certificates') }}" class="btn btn-success">
+      <i class="bi bi-trophy me-1"></i>Download All Award Certificates
+    </a>
+  </div>
+</div>
+
+{% if cfg and cfg.cert_bg_image %}
+<div class="alert alert-info">
+  Background image: <strong>{{ cfg.cert_bg_image }}</strong>
+  &nbsp;|&nbsp; Title: <strong>{{ cfg.cert_title_text }}</strong>
+</div>
+{% else %}
+<div class="alert alert-warning">
+  No background image set. Certificates will use the default design.
+  <a href="{{ url_for('certificates.template_setup') }}">Set up template</a>
+</div>
+{% endif %}
+
+<h5 class="mt-4 mb-3">Event Certificates (1st, 2nd, 3rd)</h5>
+{% if items %}
+{% set cat_order = ['Kids','Sub-Junior','Junior','Senior','Super Senior','Common'] %}
+{% for cat in cat_order %}
+  {% set cat_items = items | selectattr('category','equalto',cat) | list %}
+  {% if cat_items %}
+  <h6 class="text-muted mt-3">{{ cat }}</h6>
+  <div class="row g-2">
+    {% for item in cat_items %}
+    <div class="col-md-4">
+      <div class="card p-3 d-flex flex-row justify-content-between align-items-center">
+        <div>
+          <div class="fw-semibold">{{ item.name }}</div>
+          <div class="text-muted small">{{ item.category }}</div>
+        </div>
+        <a href="{{ url_for('certificates.event_certificates', item_id=item.id) }}"
+           class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-download me-1"></i>ZIP
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endfor %}
+{% else %}
+<div class="alert alert-info">No scored events yet.</div>
+{% endif %}
+{% endblock %}
