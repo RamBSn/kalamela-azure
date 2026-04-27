@@ -396,9 +396,8 @@ def register_group():
                     f'{m.full_name} is not individually registered for "{item.name}".'
                 )
 
-        override = request.form.get('override_warnings') == '1'
-        if warnings and not override:
-            flash('Group eligibility warnings — confirm override to proceed.', 'warning')
+        if warnings:
+            flash('Registration blocked — eligibility errors must be resolved.', 'danger')
             selected = [{'id': m.id, 'full_name': m.full_name,
                          'category': m.category, 'gender': m.gender,
                          'chest_number': m.chest_number} for m in members]
@@ -483,7 +482,64 @@ def participant_by_lkc_id():
             if issues:
                 result['eligible'] = False
                 result['eligibility_issues'] = issues
+                result['eligible_group_items'] = _eligible_group_items_for(p)
 
+    return jsonify(result)
+
+
+def _eligible_group_items_for(participant):
+    """Return group events the participant is individually registered for
+    and is category-eligible to enter (used in add-member error messages)."""
+    eligible = []
+    for entry in Entry.query.filter_by(participant_id=participant.id).all():
+        gi = CompetitionItem.query.get(entry.item_id)
+        if not gi or gi.item_type != 'group':
+            continue
+        # Category check (same logic as add-member validation)
+        if gi.category != 'Common' and participant.category != gi.category:
+            if participant.category == 'Super Senior' and gi.category == 'Senior':
+                if CompetitionItem.query.filter_by(name=gi.name, category='Super Senior').first():
+                    continue  # blocked — exists in SS category
+            else:
+                continue  # wrong category
+        eligible.append({'id': gi.id, 'name': gi.name, 'category': gi.category})
+    return eligible
+
+
+@participants_bp.route('/api/participant-by-id')
+def participant_by_db_id():
+    """Re-validate an already-added group member against a (possibly changed) event."""
+    pid = request.args.get('id', type=int)
+    item_id = request.args.get('item_id', type=int)
+    if not pid:
+        return jsonify({'found': False})
+    p = Participant.query.get(pid)
+    if not p:
+        return jsonify({'found': False})
+
+    result = {
+        'found': True, 'id': p.id, 'eligible': True, 'eligibility_issues': [],
+    }
+    if item_id:
+        item = CompetitionItem.query.get(item_id)
+        if item:
+            issues = []
+            if item.category != 'Common' and p.category != item.category:
+                if p.category == 'Super Senior' and item.category == 'Senior':
+                    if CompetitionItem.query.filter_by(name=item.name, category='Super Senior').first():
+                        issues.append(
+                            f'"{item.name}" is in the Super Senior category — '
+                            'must compete in their own category.'
+                        )
+                else:
+                    issues.append(
+                        f'Category mismatch: {p.category} participant in a {item.category} event.'
+                    )
+            if not Entry.query.filter_by(participant_id=p.id, item_id=item_id).first():
+                issues.append(f'Not individually registered for "{item.name}".')
+            if issues:
+                result['eligible'] = False
+                result['eligibility_issues'] = issues
     return jsonify(result)
 
 
@@ -502,6 +558,78 @@ def delete_group(gid):
     db.session.commit()
     flash(f'Group "{name}" removed.', 'success')
     return redirect(url_for('participants.list_groups'))
+
+
+@participants_bp.route('/groups/<int:gid>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_group(gid):
+    group = GroupEntry.query.get_or_404(gid)
+    item = group.item
+
+    if request.method == 'POST':
+        group_name = request.form.get('group_name', '').strip() or group.group_name
+        member_ids = [int(m) for m in request.form.getlist('members[]') if m]
+        members = Participant.query.filter(Participant.id.in_(member_ids)).all()
+        n = len(members)
+
+        warnings = []
+        if item.min_members and n < item.min_members:
+            warnings.append(f'Minimum {item.min_members} members required for {item.name}.')
+        if item.max_members and n > item.max_members:
+            warnings.append(f'Maximum {item.max_members} members allowed for {item.name}.')
+        if item.gender_restriction == 'Female':
+            non_female = [m.full_name for m in members if m.gender != 'Female']
+            if non_female:
+                warnings.append(
+                    f'{item.name} is females only. Non-female members: {", ".join(non_female)}.'
+                )
+        for m in members:
+            if item.category != 'Common' and m.category != item.category:
+                if m.category == 'Super Senior' and item.category == 'Senior':
+                    if CompetitionItem.query.filter_by(name=item.name, category='Super Senior').first():
+                        warnings.append(
+                            f'{m.full_name}: "{item.name}" is available in the Super Senior '
+                            'category — must compete in their own category for this event.'
+                        )
+                else:
+                    warnings.append(
+                        f'{m.full_name}: category mismatch '
+                        f'({m.category} participant in a {item.category} event).'
+                    )
+            if not Entry.query.filter_by(participant_id=m.id, item_id=item.id).first():
+                warnings.append(
+                    f'{m.full_name} is not individually registered for "{item.name}".'
+                )
+
+        if warnings:
+            flash('Update blocked — eligibility errors must be resolved.', 'danger')
+            selected = [{'id': m.id, 'full_name': m.full_name,
+                         'category': m.category, 'gender': m.gender,
+                         'chest_number': m.chest_number} for m in members]
+            return render_template(
+                'participants/edit_group.html',
+                group=group, item=item,
+                selected_members=selected,
+                warnings=warnings,
+                form_data=request.form,
+            )
+
+        group.group_name = group_name
+        group.members = members
+        db.session.commit()
+        flash(f'Group "{group.group_name}" updated.', 'success')
+        return redirect(url_for('participants.list_groups'))
+
+    selected = [{'id': m.id, 'full_name': m.full_name,
+                 'category': m.category, 'gender': m.gender,
+                 'chest_number': m.chest_number} for m in group.members]
+    return render_template(
+        'participants/edit_group.html',
+        group=group, item=item,
+        selected_members=selected,
+        warnings=[],
+        form_data=ImmutableMultiDict(),
+    )
 
 
 @participants_bp.route('/api/category-from-dob')

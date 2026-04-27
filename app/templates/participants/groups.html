@@ -29,7 +29,11 @@
           <span class="badge bg-light text-dark border">#{{ m.chest_number }} {{ m.full_name }}</span>
           {% endfor %}
         </td>
-        <td>
+        <td class="text-nowrap">
+          <a href="{{ url_for('participants.edit_group', gid=g.id) }}"
+             class="btn btn-sm btn-outline-secondary me-1">
+            <i class="bi bi-pencil"></i>
+          </a>
           <form method="post" action="{{ url_for('participants.delete_group', gid=g.id) }}"
                 class="d-inline" onsubmit="return confirm('Remove group {{ g.group_name }}?')">
             <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>

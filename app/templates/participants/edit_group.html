@@ -1,13 +1,16 @@
 {% extends 'base.html' %}
-{% block title %}Register Group{% endblock %}
+{% block title %}Edit Group — {{ group.group_name }}{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h2><i class="bi bi-people-fill me-2"></i>Register Group</h2>
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2><i class="bi bi-people-fill me-2"></i>Edit Group</h2>
+  <a href="{{ url_for('participants.list_groups') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Back to Groups
+  </a>
 </div>
 
 {% if warnings %}
 <div class="alert alert-danger">
-  <strong>Registration blocked — eligibility errors:</strong>
+  <strong>Update blocked — eligibility errors:</strong>
   <ul class="mb-0 mt-1">{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>
 </div>
 {% endif %}
@@ -15,38 +18,26 @@
 <div class="row">
   <div class="col-md-8">
     <div class="card p-4">
-      <form method="post" id="groupForm">
+      <form method="post">
+
         <div class="row g-3 mb-3">
           <div class="col-md-6">
             <label class="form-label fw-semibold">Group Name *</label>
             <input type="text" name="group_name" class="form-control"
-                   value="{{ form_data.get('group_name','') }}" required>
+                   value="{{ form_data.get('group_name', group.group_name) }}" required>
           </div>
           <div class="col-md-6">
-            <label class="form-label fw-semibold">Event *</label>
-            <select name="item_id" class="form-select" required id="itemSelect">
-              <option value="">Select event...</option>
-              {% for item in items %}
-              <option value="{{ item.id }}"
-                      data-min="{{ item.min_members or 0 }}"
-                      data-max="{{ item.max_members or 99 }}"
-                      data-gender="{{ item.gender_restriction or '' }}"
-                      {{ 'selected' if form_data.get('item_id')|string == item.id|string }}>
-                {{ item.name }} ({{ item.category }})
-                {% if item.min_members %} — {{ item.min_members }}–{{ item.max_members }} members{% endif %}
-                {% if item.gender_restriction %} [{{ item.gender_restriction }} only]{% endif %}
-              </option>
-              {% endfor %}
-            </select>
+            <label class="form-label fw-semibold">Event</label>
+            <input type="text" class="form-control bg-light" readonly
+                   value="{{ item.name }} ({{ item.category }})">
+            <input type="hidden" name="item_id" value="{{ item.id }}">
           </div>
         </div>
-
-        <div id="itemInfo" class="alert alert-info d-none mb-3"></div>
 
         <label class="form-label fw-semibold">Add Members by LKC ID</label>
         <div class="form-text mb-2">
           <i class="bi bi-info-circle me-1"></i>
-          Select the event first — each member will be checked for matching category and individual registration.
+          Each member is checked for category eligibility and individual registration for this event.
         </div>
         <div class="input-group mb-2" style="max-width:340px">
           <input type="text" id="lkcIdInput" class="form-control" placeholder="LKC101"
@@ -58,11 +49,11 @@
         <div id="lookupMsg" class="small mb-2 d-none"></div>
 
         <div id="memberList" class="list-group mb-2"></div>
-        <div id="memberCount" class="text-muted small mb-3">0 member(s) added</div>
+        <div id="memberCount" class="text-muted small mb-3">0 member(s)</div>
         <div id="memberInputs"></div>
 
         <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-success">Register Group</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
           <a href="{{ url_for('participants.list_groups') }}" class="btn btn-outline-secondary">Cancel</a>
         </div>
       </form>
@@ -70,14 +61,12 @@
   </div>
 </div>
 
-{# Preload members when re-displaying form after a warning #}
 <script id="preloadData" type="application/json">{{ selected_members | tojson }}</script>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const itemSelect   = document.getElementById('itemSelect');
-const itemInfo     = document.getElementById('itemInfo');
+const ITEM_ID      = {{ item.id }};
 const lkcIdInput   = document.getElementById('lkcIdInput');
 const addMemberBtn = document.getElementById('addMemberBtn');
 const lookupMsg    = document.getElementById('lookupMsg');
@@ -93,34 +82,17 @@ function showMsg(html, type = 'danger') {
   lookupMsg.classList.remove('d-none');
 }
 
-function updateInfo() {
-  const opt = itemSelect.options[itemSelect.selectedIndex];
-  if (!opt.value) { itemInfo.classList.add('d-none'); return; }
-  const min = opt.dataset.min, max = opt.dataset.max, gender = opt.dataset.gender;
-  let msg = `Members: ${min || 1}–${max || '∞'}`;
-  if (gender) msg += ` &nbsp;|&nbsp; <strong>${gender} only</strong>`;
-  itemInfo.innerHTML = msg;
-  itemInfo.classList.remove('d-none');
-}
-
 function renderMembers() {
   memberList.innerHTML = '';
   memberInputs.innerHTML = '';
   const list = Object.values(members);
   list.forEach(m => {
-    const eligible = m.eligible !== false;
-    const issues   = m.eligibility_issues || [];
     const item = document.createElement('div');
-    item.className = 'list-group-item d-flex align-items-start gap-2'
-      + (eligible ? '' : ' list-group-item-warning');
+    item.className = 'list-group-item d-flex justify-content-between align-items-center';
     item.innerHTML =
-      `<div class="flex-grow-1">
-         <strong>#${m.chest_number}</strong> — ${m.full_name}
-         <span class="text-muted">(${m.category}, ${m.gender})</span>
-         ${eligible ? '' : '<span class="badge bg-warning text-dark ms-1"><i class="bi bi-exclamation-triangle-fill"></i> Ineligible for this event</span>'}
-         ${issues.length ? `<ul class="small text-danger mb-0 mt-1 ps-3">${issues.map(i=>`<li>${i}</li>`).join('')}</ul>` : ''}
-       </div>
-       <button type="button" class="btn btn-sm btn-outline-danger flex-shrink-0" data-id="${m.id}">
+      `<span><strong>#${m.chest_number}</strong> — ${m.full_name}
+       <span class="text-muted">(${m.category}, ${m.gender})</span></span>
+       <button type="button" class="btn btn-sm btn-outline-danger" data-id="${m.id}">
          <i class="bi bi-x"></i>
        </button>`;
     item.querySelector('button').addEventListener('click', () => {
@@ -135,24 +107,7 @@ function renderMembers() {
     hidden.value = m.id;
     memberInputs.appendChild(hidden);
   });
-  memberCount.textContent = `${list.length} member(s) added`;
-}
-
-async function revalidateAllMembers() {
-  const itemId = itemSelect.value;
-  if (!itemId || !Object.keys(members).length) return;
-  await Promise.all(Object.values(members).map(m =>
-    fetch(`/participants/api/participant-by-id?id=${m.id}&item_id=${itemId}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.found) {
-          members[m.id].eligible          = d.eligible;
-          members[m.id].eligibility_issues = d.eligibility_issues || [];
-        }
-      })
-      .catch(() => {})
-  ));
-  renderMembers();
+  memberCount.textContent = `${list.length} member(s)`;
 }
 
 function addMember() {
@@ -160,9 +115,7 @@ function addMember() {
   if (!lkcId || lkcId === 'LKC') return;
   lookupMsg.classList.add('d-none');
 
-  const itemId = itemSelect.value;
-  const url = `/participants/api/by-lkc-id?id=${encodeURIComponent(lkcId)}`
-            + (itemId ? `&item_id=${itemId}` : '');
+  const url = `/participants/api/by-lkc-id?id=${encodeURIComponent(lkcId)}&item_id=${ITEM_ID}`;
 
   fetch(url)
     .then(r => r.json())
@@ -203,13 +156,10 @@ lkcIdInput.addEventListener('focus', () => {
   const len = lkcIdInput.value.length;
   lkcIdInput.setSelectionRange(len, len);
 });
-itemSelect.addEventListener('change', () => { updateInfo(); revalidateAllMembers(); });
 
-// Pre-populate members from server (warning re-display)
+// Pre-populate with existing members
 const preload = JSON.parse(document.getElementById('preloadData').textContent || '[]');
 preload.forEach(m => { members[m.id] = m; });
-
-updateInfo();
 renderMembers();
 </script>
 {% endblock %}
