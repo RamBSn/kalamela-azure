@@ -223,7 +223,7 @@ function addMember() {
     .then(r => r.json())
     .then(d => {
       if (!d.found) {
-        showMsg(`No participant found with LKC ID "${lkcId}".`);
+        showMsg(`No participant found with LKC ID "${lkcId}". Please use the Register Individual form before adding them to a group.`);
         return;
       }
       if (d.multiple) {

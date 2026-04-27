@@ -360,6 +360,22 @@ def register_group():
     if request.method == 'POST':
         item_id = int(request.form['item_id'])
         item = CompetitionItem.query.get_or_404(item_id)
+        group_name = request.form.get('group_name', '').strip()
+
+        # Duplicate group name check
+        if GroupEntry.query.filter(
+            db.func.lower(GroupEntry.group_name) == group_name.lower()
+        ).first():
+            flash(
+                f'"{group_name}" is already registered. '
+                'Please contact the LKC Kalamela co-ordinator to modify the group.',
+                'danger'
+            )
+            return render_template(
+                'participants/register_group.html',
+                items=items, selected_members=[], warnings=[], form_data=request.form,
+            )
+
         member_ids = request.form.getlist('members[]')
         member_ids = [int(m) for m in member_ids if m]
 
@@ -410,7 +426,7 @@ def register_group():
             )
 
         group = GroupEntry(
-            group_name=request.form['group_name'].strip(),
+            group_name=group_name,
             item_id=item_id,
             chest_number=GroupEntry.next_chest_number(),
         )
@@ -569,6 +585,26 @@ def edit_group(gid):
     if request.method == 'POST':
         group_name = request.form.get('group_name', '').strip() or group.group_name
         member_ids = [int(m) for m in request.form.getlist('members[]') if m]
+
+        # Duplicate group name check (excluding this group)
+        if GroupEntry.query.filter(
+            db.func.lower(GroupEntry.group_name) == group_name.lower(),
+            GroupEntry.id != gid,
+        ).first():
+            flash(
+                f'"{group_name}" is already registered. '
+                'Please contact the LKC Kalamela co-ordinator to modify the group.',
+                'danger'
+            )
+            selected = [{'id': m.id, 'full_name': m.full_name,
+                         'category': m.category, 'gender': m.gender,
+                         'chest_number': m.chest_number} for m in group.members]
+            return render_template(
+                'participants/edit_group.html',
+                group=group, item=item, selected_members=selected,
+                warnings=[], form_data=request.form,
+            )
+
         members = Participant.query.filter(Participant.id.in_(member_ids)).all()
         n = len(members)
 
