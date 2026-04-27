@@ -35,6 +35,14 @@ resource "azurerm_key_vault" "main" {
 #   depends_on = [azurerm_role_assignment.deployer_kv_officer]
 # }
 
+# resource "azurerm_key_vault_secret" "data_reset_password" {
+#   name         = "data-reset-password"
+#   value        = var.data_reset_password
+#   key_vault_id = azurerm_key_vault.main.id
+#
+#   depends_on = [azurerm_role_assignment.deployer_kv_officer]
+# }
+
 # ── Role assignments ───────────────────────────────────────────────────────────
 
 # The identity running `terraform apply` needs Secrets Officer to create/update secrets.

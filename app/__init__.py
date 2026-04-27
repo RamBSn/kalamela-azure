@@ -32,6 +32,10 @@ def create_app(test_config=None):
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['UPLOAD_FOLDER'] = upload_folder
     app.config['BACKUP_FOLDER'] = backup_folder
+    # Extra password for Reset / Restore operations.
+    # Set via DATA_RESET_PASSWORD env var (sourced from Key Vault on Azure).
+    # If not set, the check is skipped — intended for local development only.
+    app.config['DATA_RESET_PASSWORD'] = os.environ.get('DATA_RESET_PASSWORD', '')
     # Default hash; tests always use this (no file loading in test mode)
     app.config['ADMIN_PASSWORD_HASH'] = generate_password_hash(_DEFAULT_ADMIN_PASSWORD)
 

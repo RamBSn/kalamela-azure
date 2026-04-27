@@ -55,6 +55,12 @@ variable "key_vault_name" {
   type        = string
 }
 
+variable "data_reset_password" {
+  description = "Extra password required to perform Reset and Restore data operations. Stored in Key Vault as 'data-reset-password'."
+  type        = string
+  sensitive   = true
+}
+
 variable "data_dir" {
   description = "Persistent directory on Azure App Service for the SQLite DB, uploads, and backups. /home is an Azure Files mount that survives restarts."
   type        = string

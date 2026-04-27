@@ -35,6 +35,14 @@ def _list_backups():
     return files
 
 
+def _check_data_password(submitted):
+    """Return True if the extra data-management password matches, or if none is configured."""
+    required = current_app.config.get('DATA_RESET_PASSWORD', '')
+    if not required:
+        return True   # not configured — local dev, skip check
+    return submitted == required
+
+
 def _do_backup(label='manual'):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f'backup_{label}_{timestamp}.db'
@@ -46,7 +54,9 @@ def _do_backup(label='manual'):
 @data_bp.route('/')
 def index():
     backups = _list_backups()
-    return render_template('data/index.html', backups=backups)
+    data_password_required = bool(current_app.config.get('DATA_RESET_PASSWORD'))
+    return render_template('data/index.html', backups=backups,
+                           data_password_required=data_password_required)
 
 
 @data_bp.route('/backup', methods=['POST'])
@@ -77,6 +87,10 @@ def restore():
         flash('Only .db backup files are accepted.', 'danger')
         return redirect(url_for('data.index'))
 
+    if not _check_data_password(request.form.get('data_password', '')):
+        flash('Incorrect data management password.', 'danger')
+        return redirect(url_for('data.index'))
+
     # Auto-backup before restore
     _do_backup(label='pre_restore')
 
@@ -91,6 +105,10 @@ def reset():
     confirm = request.form.get('confirm_reset', '')
     if confirm != 'RESET':
         flash('Type RESET to confirm.', 'warning')
+        return redirect(url_for('data.index'))
+
+    if not _check_data_password(request.form.get('data_password', '')):
+        flash('Incorrect data management password.', 'danger')
         return redirect(url_for('data.index'))
 
     # Auto-backup before reset

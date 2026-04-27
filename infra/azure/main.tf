@@ -60,6 +60,7 @@ resource "azurerm_linux_web_app" "main" {
     # Format: @Microsoft.KeyVault(VaultName=...;SecretName=...) always fetches the latest version.
     SECRET_KEY                     = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=flask-secret-key)"
     ADMIN_PASSWORD                 = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=admin-password)"
+    DATA_RESET_PASSWORD            = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.main.name};SecretName=data-reset-password)"
     DATA_DIR                       = var.data_dir
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     # Tells pip to install from requirements.txt on each deploy
