@@ -1,15 +1,89 @@
 import re
+import logging
 from datetime import date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from markupsafe import Markup, escape
 from werkzeug.datastructures import ImmutableMultiDict
 from app import db
 from app.models import Participant, GroupEntry, Entry, CompetitionItem
 from app.auth import login_required
 
+logger = logging.getLogger(__name__)
+
 participants_bp = Blueprint('participants', __name__)
 
 CATEGORIES = ['Kids', 'Sub-Junior', 'Junior', 'Senior', 'Super Senior', 'Common']
 FEMALE_ONLY_ITEMS = ['Thiruvathira', 'Oppana', 'Margamkali']
+
+LKC_MEMBERSHIP_API = 'https://leicesterkeralacommunity.org.uk/mobileapp/api/auth/login'
+LKC_JOIN_URL = 'https://www.leicesterkeralacommunity.org.uk/online'
+
+
+def _verify_lkc_membership(lkc_id: str, email: str):
+    """
+    Check LKC membership status via the community API.
+    Returns ('active'|'inactive'|'error', message, holder_name).
+    'error' means the API was unreachable — caller should warn and proceed.
+    Success is determined by membership_status == 'active' in the response body.
+    """
+    import json as _j
+    import urllib.request as _ur
+    import urllib.error as _ue
+
+    logger.info('LKC membership check — lkc_id=%s, email=%s', lkc_id, email)
+
+    payload = _j.dumps({'lkc_id': lkc_id, 'email': email}).encode('utf-8')
+    req = _ur.Request(
+        LKC_MEMBERSHIP_API,
+        data=payload,
+        headers={
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0',
+        },
+        method='POST',
+    )
+    try:
+        with _ur.urlopen(req, timeout=5) as resp:
+            raw = resp.read().decode('utf-8')
+            body = _j.loads(raw)
+        logger.debug('LKC membership check — response: %s', raw)
+
+        user              = body.get('data', {}).get('user', {})
+        membership_status = user.get('membership_status', '')
+
+        if membership_status == 'active':
+            first  = (user.get('first_name') or '').strip()
+            last   = (user.get('last_name')  or '').strip()
+            holder = f'{first} {last}'.strip()
+            logger.info('LKC membership check — ACTIVE for %s (%s %s)', lkc_id, first, last)
+            return 'active', 'LKC membership is active.', holder
+
+        logger.warning(
+            'LKC membership check — NOT active for %s: membership_status=%r',
+            lkc_id, membership_status
+        )
+        return 'inactive', 'Membership is not active.', ''
+
+    except _ue.HTTPError as e:
+        raw_err = ''
+        try:
+            raw_err = e.read().decode('utf-8')
+            err_body = _j.loads(raw_err)
+            msg = err_body.get('messages', {}).get('error') or f'HTTP {e.code} from membership API.'
+        except Exception:
+            msg = f'HTTP {e.code} from membership API.'
+        logger.warning(
+            'LKC membership check — HTTP %s for %s email=%s: %s | raw: %s',
+            e.code, lkc_id, email, msg, raw_err
+        )
+        return 'inactive', msg, ''
+
+    except Exception as exc:
+        logger.error(
+            'LKC membership check — unreachable for %s email=%s: %s',
+            lkc_id, email, exc, exc_info=True
+        )
+        return 'error', f'Could not reach LKC server ({exc}).', ''
 
 
 def check_eligibility(participant, item):
@@ -152,6 +226,23 @@ def register_individual():
         if not re.fullmatch(r'LKC\d{3,4}', lkc_id):
             return _re_render(error='LKC ID must be in LKC### or LKC#### format (LKC followed by 3 or 4 digits).')
 
+        # --- Validate email (required for membership check) ---
+        email_val = request.form.get('email', '').strip()
+        if not email_val:
+            return _re_render(error='Email address is required for LKC membership verification.')
+
+        # --- Verify LKC membership ---
+        mem_status, mem_msg, _ = _verify_lkc_membership(lkc_id, email_val)
+        if mem_status == 'inactive':
+            flash(Markup(
+                f'{escape(mem_msg)} &mdash; '
+                f'<a href="{LKC_JOIN_URL}" target="_blank" rel="noopener noreferrer">'
+                f'Register or renew your LKC membership</a>'
+            ), 'danger')
+            return _re_render()
+        if mem_status == 'error':
+            flash(f'LKC membership check unavailable ({mem_msg}). Proceeding with registration.', 'warning')
+
         category = Participant.derive_category(dob)
 
         participant = Participant(
@@ -162,7 +253,7 @@ def register_individual():
             lkc_id=lkc_id,
             gender=request.form['gender'],
             phone=phone,
-            email=request.form.get('email', '').strip() or None,
+            email=email_val or None,
             parent_name=request.form.get('parent_name', '').strip() or None,
         )
         db.session.add(participant)
@@ -421,3 +512,16 @@ def category_from_dob():
         return jsonify({'category': Participant.derive_category(dob)})
     except Exception:
         return jsonify({'category': ''})
+
+
+@participants_bp.route('/api/verify-membership', methods=['POST'])
+def verify_membership_api():
+    """Proxy the LKC membership check — used by the registration form via AJAX."""
+    data = request.get_json(silent=True) or {}
+    lkc_id = data.get('lkc_id', '').strip().upper()
+    email = data.get('email', '').strip()
+    if not lkc_id or not email:
+        return jsonify({'status': 'error', 'message': 'LKC ID and email are required.'})
+    status, message, holder_name = _verify_lkc_membership(lkc_id, email)
+    return jsonify({'status': status, 'message': message,
+                    'join_url': LKC_JOIN_URL, 'holder_name': holder_name})

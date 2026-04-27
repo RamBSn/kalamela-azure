@@ -46,7 +46,7 @@
           </div>
           <div class="col-md-3">
             <label class="form-label">LKC ID *</label>
-            <input type="text" name="lkc_id" class="form-control"
+            <input type="text" name="lkc_id" id="lkcIdField" class="form-control"
                    value="{{ form_data.get('lkc_id','LKC') }}"
                    pattern="[Ll][Kk][Cc][0-9]{3,4}"
                    maxlength="7" placeholder="LKC1234"
@@ -63,14 +63,22 @@
                    required>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Email</label>
-            <input type="email" name="email" class="form-control"
-                   value="{{ form_data.get('email','') }}">
+            <label class="form-label">Email *</label>
+            <input type="email" name="email" id="emailField" class="form-control"
+                   value="{{ form_data.get('email','') }}"
+                   placeholder="member@example.com"
+                   data-bs-toggle="tooltip" data-bs-placement="top"
+                   title="Use the same email address registered with your LKC ID"
+                   required>
+            <div class="form-text"><i class="bi bi-info-circle me-1"></i>Use email registered with your LKC ID</div>
           </div>
           <div class="col-md-6">
             <label class="form-label">Parent / Guardian Name</label>
             <input type="text" name="parent_name" class="form-control"
                    value="{{ form_data.get('parent_name','') }}">
+          </div>
+          <div class="col-12" id="membershipCheckRow" style="display:none">
+            <div id="membershipStatus" class="p-2 border rounded small"></div>
           </div>
         </div>
 
@@ -151,94 +159,198 @@
 
 {% block extra_js %}
 <script>
-// Senior event IDs that Super Seniors may NOT enter (same event exists in Super Senior category)
 const SS_EXCLUDED_SENIOR_IDS = new Set({{ ss_excluded_senior_ids | tojson }});
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Submit-state (membership + event-count must both pass) ────────────────────
+let membershipVerified   = false;
+let eventCountValid      = true;
+let membershipHolderName = '';
+let currentCategory      = '';   // set whenever DOB resolves; used by fillParentNameIfNeeded
+
+const JUNIOR_CATS = new Set(['Kids', 'Sub-Junior', 'Junior']);
+
+// Fill Parent/Guardian name from the LKC membership holder when registering
+// a child (Kids / Sub-Junior / Junior) — only if the field is still empty.
+// catArg: explicit category string (from filterItemsByCategory) or omit to use currentCategory.
+function fillParentNameIfNeeded(catArg) {
+  if (!membershipHolderName) return;
+  const cat = (catArg !== undefined && catArg !== null && catArg !== '')
+                ? String(catArg)
+                : currentCategory;
+  if (!JUNIOR_CATS.has(cat)) return;
+  const field = document.querySelector('input[name="parent_name"]');
+  if (field && !field.value.trim()) field.value = membershipHolderName;
+}
+
+function updateSubmitState() {
+  document.getElementById('submitBtn').disabled = !membershipVerified || !eventCountValid;
+}
+
+// ── LKC Membership check ──────────────────────────────────────────────────────
+function setMembershipStatus(html, verified) {
+  const row = document.getElementById('membershipCheckRow');
+  document.getElementById('membershipStatus').innerHTML = html;
+  row.style.display = '';
+  membershipVerified = verified;
+  updateSubmitState();
+}
+
+function checkMembership() {
+  const lkcId = document.getElementById('lkcIdField').value.trim().toUpperCase();
+  const email = document.getElementById('emailField').value.trim();
+  if (!lkcId || lkcId === 'LKC' || !/^LKC\d{3,4}$/i.test(lkcId) || !email || !email.includes('@')) return;
+
+  setMembershipStatus(
+    '<span class="text-muted"><span class="spinner-border spinner-border-sm me-1" role="status"></span>Verifying LKC membership…</span>',
+    false
+  );
+
+  fetch('/participants/api/verify-membership', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({lkc_id: lkcId, email: email})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'active') {
+      membershipHolderName = d.holder_name || '';
+      fillParentNameIfNeeded();
+      setMembershipStatus(
+        `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>${escHtml(d.message)}</span>`,
+        true
+      );
+    } else if (d.status === 'inactive') {
+      setMembershipStatus(
+        `<span class="text-danger"><i class="bi bi-x-circle-fill me-1"></i>${escHtml(d.message)} &mdash; ` +
+        `<a href="${escHtml(d.join_url)}" target="_blank" rel="noopener noreferrer">Register or renew LKC membership</a></span>`,
+        false
+      );
+    } else {
+      // Network / server error — allow to proceed with a warning
+      setMembershipStatus(
+        `<span class="text-warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>${escHtml(d.message)}</span>`,
+        true
+      );
+    }
+  })
+  .catch(() => setMembershipStatus(
+    '<span class="text-warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>Membership check unavailable — proceeding without verification.</span>',
+    true
+  ));
+}
+
+// Reset verified flag whenever either field changes
+['lkcIdField', 'emailField'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    membershipVerified   = false;
+    membershipHolderName = '';
+    document.getElementById('membershipCheckRow').style.display = 'none';
+    updateSubmitState();
+  });
+});
+document.getElementById('lkcIdField').addEventListener('blur', checkMembership);
+document.getElementById('emailField').addEventListener('blur',  checkMembership);
+
+// ── Category / event filter ───────────────────────────────────────────────────
 function filterItemsByCategory(category) {
   const sections = document.querySelectorAll('.category-section');
   let anyVisible = false;
   sections.forEach(section => {
     const sectionCat = section.dataset.category;
-    const isSuperSeniorViewingSenior = (category === 'Super Senior' && sectionCat === 'Senior');
-    const show = !category || sectionCat === category || sectionCat === 'Common' || isSuperSeniorViewingSenior;
+    const isSuperSeniorInSenior = (category === 'Super Senior' && sectionCat === 'Senior');
+    const show = !category || sectionCat === category || sectionCat === 'Common' || isSuperSeniorInSenior;
     section.style.display = show ? '' : 'none';
-
     if (!show) {
       section.querySelectorAll('.event-check').forEach(cb => {
-        cb.checked = false;
-        cb.disabled = false;
+        cb.checked = false; cb.disabled = false;
         cb.closest('.form-check').style.opacity = '';
       });
-    } else if (isSuperSeniorViewingSenior) {
-      // Disable Senior events that also exist in Super Senior
+    } else if (isSuperSeniorInSenior) {
       section.querySelectorAll('.event-check').forEach(cb => {
-        const excluded = SS_EXCLUDED_SENIOR_IDS.has(parseInt(cb.value));
-        cb.disabled = excluded;
-        if (excluded) cb.checked = false;
-        cb.closest('.form-check').style.opacity = excluded ? '0.45' : '';
+        const excl = SS_EXCLUDED_SENIOR_IDS.has(parseInt(cb.value));
+        cb.disabled = excl;
+        if (excl) cb.checked = false;
+        cb.closest('.form-check').style.opacity = excl ? '0.45' : '';
       });
     } else {
-      // Reset any previously applied disabled state
       section.querySelectorAll('.event-check').forEach(cb => {
         cb.disabled = false;
         cb.closest('.form-check').style.opacity = '';
       });
     }
-
     if (show) anyVisible = true;
   });
   document.getElementById('noItemsMsg').classList.toggle('d-none', !category || anyVisible);
+  fillParentNameIfNeeded(category);
 }
 
 document.getElementById('dobInput').addEventListener('change', function() {
   const dob = this.value;
-  if (!dob) { filterItemsByCategory(''); return; }
+  if (!dob) { currentCategory = ''; filterItemsByCategory(''); return; }
   fetch(`/participants/api/category-from-dob?dob=${dob}`)
     .then(r => r.json())
     .then(d => {
-      const cat = d.category || '';
-      document.getElementById('categoryDisplay').value = cat;
-      filterItemsByCategory(cat);
+      currentCategory = d.category || '';
+      document.getElementById('categoryDisplay').value = currentCategory;
+      filterItemsByCategory(currentCategory);
     });
 });
 
-document.querySelectorAll('.event-check').forEach(cb => {
-  cb.addEventListener('change', checkEventCount);
-});
+// ── Event-count validation ────────────────────────────────────────────────────
+document.querySelectorAll('.event-check').forEach(cb => cb.addEventListener('change', checkEventCount));
 
 function checkEventCount() {
-  const checked = [...document.querySelectorAll('.event-check:checked')];
-  const soloCount = checked.filter(c => c.dataset.type === 'solo').length;
+  const checked    = [...document.querySelectorAll('.event-check:checked')];
+  const soloCount  = checked.filter(c => c.dataset.type === 'solo').length;
   const groupCount = checked.filter(c => c.dataset.type === 'group').length;
   const valid = (soloCount <= 3 && groupCount <= 1 && soloCount + groupCount <= 4) ||
                 (soloCount <= 2 && groupCount <= 2 && soloCount + groupCount <= 4);
+  eventCountValid = valid;
   document.getElementById('eventCountWarning').classList.toggle('d-none', valid);
-  document.getElementById('submitBtn').disabled = !valid;
+  updateSubmitState();
 }
 
 document.querySelector('form').addEventListener('submit', function(e) {
-  const checked = [...document.querySelectorAll('.event-check:checked')];
-  const soloCount = checked.filter(c => c.dataset.type === 'solo').length;
-  const groupCount = checked.filter(c => c.dataset.type === 'group').length;
-  const valid = (soloCount <= 3 && groupCount <= 1 && soloCount + groupCount <= 4) ||
-                (soloCount <= 2 && groupCount <= 2 && soloCount + groupCount <= 4);
-  if (!valid) {
+  if (!eventCountValid) {
     e.preventDefault();
     document.getElementById('eventCountWarning').classList.remove('d-none');
+    return;
+  }
+  if (!membershipVerified) {
+    e.preventDefault();
+    checkMembership();
   }
 });
 
-// On page load: if DOB already filled (form re-display), restore category filter
-(function() {
-  const dob = document.getElementById('dobInput').value;
+// ── Initialise on page load ───────────────────────────────────────────────────
+new bootstrap.Tooltip(document.getElementById('emailField'));
+updateSubmitState();
+
+(function init() {
+  const dob   = document.getElementById('dobInput').value;
+  const lkcId = document.getElementById('lkcIdField').value.trim();
+  const email = document.getElementById('emailField').value.trim();
+
   if (dob) {
     fetch(`/participants/api/category-from-dob?dob=${dob}`)
       .then(r => r.json())
-      .then(d => { filterItemsByCategory(d.category || ''); });
+      .then(d => {
+        currentCategory = d.category || '';
+        document.getElementById('categoryDisplay').value = currentCategory;
+        filterItemsByCategory(currentCategory);
+      });
   } else {
     filterItemsByCategory(null);
     document.getElementById('noItemsMsg').classList.remove('d-none');
   }
+
+  // Auto-trigger check on form re-display (e.g. after eligibility warning)
+  if (lkcId && lkcId !== 'LKC' && email) checkMembership();
 })();
 </script>
 {% endblock %}
