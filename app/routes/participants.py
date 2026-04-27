@@ -414,7 +414,7 @@ def register_group():
 
         if warnings:
             flash('Registration blocked — eligibility errors must be resolved.', 'danger')
-            selected = [{'id': m.id, 'full_name': m.full_name,
+            selected = [{'id': m.id, 'lkc_id': m.lkc_id, 'full_name': m.full_name,
                          'category': m.category, 'gender': m.gender,
                          'chest_number': m.chest_number} for m in members]
             return render_template(
@@ -596,7 +596,7 @@ def edit_group(gid):
                 'Please contact the LKC Kalamela co-ordinator to modify the group.',
                 'danger'
             )
-            selected = [{'id': m.id, 'full_name': m.full_name,
+            selected = [{'id': m.id, 'lkc_id': m.lkc_id, 'full_name': m.full_name,
                          'category': m.category, 'gender': m.gender,
                          'chest_number': m.chest_number} for m in group.members]
             return render_template(
@@ -639,7 +639,7 @@ def edit_group(gid):
 
         if warnings:
             flash('Update blocked — eligibility errors must be resolved.', 'danger')
-            selected = [{'id': m.id, 'full_name': m.full_name,
+            selected = [{'id': m.id, 'lkc_id': m.lkc_id, 'full_name': m.full_name,
                          'category': m.category, 'gender': m.gender,
                          'chest_number': m.chest_number} for m in members]
             return render_template(
@@ -656,7 +656,7 @@ def edit_group(gid):
         flash(f'Group "{group.group_name}" updated.', 'success')
         return redirect(url_for('participants.list_groups'))
 
-    selected = [{'id': m.id, 'full_name': m.full_name,
+    selected = [{'id': m.id, 'lkc_id': m.lkc_id, 'full_name': m.full_name,
                  'category': m.category, 'gender': m.gender,
                  'chest_number': m.chest_number} for m in group.members]
     return render_template(

@@ -55,9 +55,10 @@ kalamela-azure/
 │   │   ├── auth/
 │   │   ├── setup/
 │   │   ├── participants/
-│   │   │   ├── register_individual.html
-│   │   │   ├── register_group.html      # LKC prefix pre-filled; eligibility API check
-│   │   │   ├── groups.html              # Search + admin edit/delete
+│   │   │   ├── register_individual.html # LKC membership check; GDPR consent; auto-fill parent
+│   │   │   ├── register_group.html      # LKC prefix pre-filled; eligibility API check; candidate selection
+│   │   │   ├── edit_group.html          # Edit group members (admin); read-only event; same eligibility checks
+│   │   │   ├── groups.html              # Group list + admin edit/delete buttons
 │   │   │   ├── list.html
 │   │   │   └── edit.html
 │   │   ├── schedule/
@@ -177,7 +178,7 @@ Stores the organiser-defined ordering of competition items within a stage for pl
 | display_order | Integer | |
 | *unique constraint* | (stage_id, item_id) | |
 
-Auto-synced when the planning page is loaded: new items with entries are added at the end; items removed from a stage are deleted.
+Auto-synced when the planning page is loaded: all CompetitionItems assigned to the stage are synced (not just those with entries); items removed from the stage assignment are deleted. Items can also be manually removed/restored from the planning UI.
 
 ---
 
@@ -308,46 +309,103 @@ Key computed properties:
 ### 6.2 Participant Registration
 
 **Individual** (`/participants/register`):
+- Form label "Participant Name" (not "Full Name")
 - DOB: `type="date"`, enforced `min=1900-01-01`, `max=today` (HTML5 + server)
 - Phone: `07XXXXXXXXX` format, pre-filled with `07`, server-validated
 - LKC ID: `LKC###` or `LKC####`, pre-filled with `LKC`, server regex validated
-- Category auto-derived from DOB
+- Category auto-derived from DOB; stored in `currentCategory` JS variable (not DOM read) to avoid race conditions with async callbacks
+- **LKC membership check**: AJAX POST to `/participants/api/verify-membership` on LKC ID + email blur; blocks submit if inactive; shows renewal link; `status: 'error'` (API unavailable) is treated as a soft pass
+- **Parent/Guardian auto-fill**: if membership check returns `holder_name` and the participant's category is Kids, Sub-Junior, or Junior, the Parent/Guardian field is auto-filled from the API's holder name (only if the field is blank)
 - Hard-block on event count (no admin override on public page)
 - Hard-block on eligibility (gender restrictions, category mismatch)
+- **GDPR consent checkbox** (required): links to LKC GDPR Policy; must be ticked before submit
 - Redirect to `register_individual` after success (not admin-only page)
 
 **Group** (`/participants/groups/register`):
 - LKC ID lookup field pre-filled with `LKC`; cursor positioned after prefix on focus
+- **Duplicate group name check**: case-insensitive; if name already exists, hard error — "this group is already registered, please contact LKC kalamela co-ordinator to modify the group"
 - Member eligibility checked via API *at the time of adding* (before form submit):
-  1. Participant's category must match the selected event's category (or event is Common)
+  1. Participant's category must match the selected event's category (or event is Common; Super Senior may enter Senior events unless a Super Senior variant exists)
   2. Participant must have an individual `Entry` for this group event
-- Both checks also enforced server-side on POST; admin override available
+- **Multiple participants per LKC ID**: if lookup returns >1 match, a candidate selection panel appears; if exactly 1 match, adds directly
+- **Ineligible error message** includes list of group events the participant *can* be added to (cross-referenced via `_eligible_group_items_for()` helper)
+- **Not found message**: "No participant found with LKC ID '…'. Please use the Register Individual form before adding them to a group."
+- **Member list** shows chest number, LKC ID, full name, category, gender; ineligible members shown with amber warning badge and issue list
+- **Re-validation on event change**: when the selected event is changed after members have been added, all existing members are re-validated against the new event via `/api/participant-by-id`; ineligible members are flagged but not removed
+- Both eligibility checks enforced server-side on POST — **hard block, no admin override**
+- No GDPR section (GDPR consent is only on individual registration)
 
 **Group list** (`/participants/groups`) — public read, admin edit/delete:
-- Search by group name or event name
-- Edit button visible only to admins
+- Edit (pencil) button visible to admins; links to edit_group page
 
 **Group edit** (`/participants/groups/<id>/edit`) — admin only:
-- Pre-populated form; same member eligibility checks as registration
-- If event item changes: old `Entry` (and scores) deleted, new `Entry` created
-- Warning shown if existing score records will be lost
+- Pre-populated with existing members; event is **read-only** (cannot be changed)
+- Admins can add or remove members; same eligibility checks as registration
+- Hard block on eligibility — no override option
+- No GDPR section
 
 ---
 
 ### 6.3 Participant Lookup API
 
-`GET /participants/api/by-lkc-id?id=LKC101[&item_id=N]`
+**`GET /participants/api/by-lkc-id?id=LKC101[&item_id=N]`**
 
-Without `item_id`: returns `{found, id, full_name, category, gender, chest_number}`.
-
-With `item_id`: also returns:
+Single match returns:
 ```json
 {
-  "eligible": false,
+  "found": true, "id": 1, "lkc_id": "LKC101",
+  "full_name": "...", "category": "Junior", "gender": "Female",
+  "chest_number": 101, "eligible": true, "eligibility_issues": []
+}
+```
+
+Multiple participants share the same LKC ID — returns candidate list:
+```json
+{
+  "found": true, "multiple": true,
+  "candidates": [
+    {"lkc_id": "LKC101", "full_name": "...", "eligible": true, ...},
+    {"lkc_id": "LKC101", "full_name": "...", "eligible": false,
+     "eligibility_issues": [...], "eligible_group_items": [...]}
+  ]
+}
+```
+
+When `eligible: false`, the response includes:
+```json
+{
   "eligibility_issues": [
     "Category mismatch: participant is Kids, this event is for Junior.",
     "Not individually registered for \"Group Song\"."
+  ],
+  "eligible_group_items": [
+    {"id": 5, "name": "Group Song", "category": "Kids"}
   ]
+}
+```
+`eligible_group_items` lists group events the participant is individually registered for AND category-eligible to enter (computed by `_eligible_group_items_for()` helper).
+
+---
+
+**`GET /participants/api/participant-by-id?id=<db_id>[&item_id=N]`**
+
+Lookup by database participant ID; same response shape as `by-lkc-id` single match.  
+Used by the group registration form to re-validate already-added members when the selected event changes.
+
+---
+
+**`POST /participants/api/verify-membership`**  
+Body: `{"lkc_id": "LKC101", "email": "user@example.com"}`
+
+Server-side proxy to the LKC membership API (bypasses Cloudflare by sending `User-Agent: Mozilla/5.0`).
+
+Response:
+```json
+{
+  "status": "active",       // or "inactive" or "error"
+  "message": "Active member: Ramesh Babu",
+  "holder_name": "Ramesh Babu",   // present when status=active
+  "join_url": "https://..."        // present when status=inactive
 }
 ```
 
@@ -537,15 +595,18 @@ New tables (e.g. `stage_plan_item`) are created automatically by `db.create_all(
 | DOB | Valid date, year ≥ 1900, not in the future |
 | Phone | `07XXXXXXXXX` — 11 digits, starts with `07` |
 | LKC ID | Regex `LKC\d{3,4}` |
+| LKC Membership | AJAX check on LKC ID + email; inactive membership blocks submit; API error is soft pass |
+| GDPR consent | Checkbox must be ticked |
 | Event count | (≤ 3 solo + ≤ 1 group) or (≤ 2 solo + ≤ 2 group), total ≤ 4 |
 | Eligibility | Category match, gender restriction |
 
-### Group registration (with admin override)
+### Group registration (hard block, no admin override)
 | Check | Rule |
 |---|---|
+| Duplicate name | Group name must be unique (case-insensitive); hard error with contact message |
 | Member count | Between `min_members` and `max_members` |
 | Gender | Female-only events reject male members |
-| Category | Each member's category must match the event's category (unless Common) |
+| Category | Each member's category must match the event's category (unless Common); Super Senior may enter Senior events unless a Super Senior variant of the same event exists |
 | Individual registration | Each member must have an individual `Entry` for this group event |
 
 ---
