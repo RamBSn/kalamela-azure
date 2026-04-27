@@ -436,28 +436,26 @@ def participant_by_lkc_id():
     lkc_id = request.args.get('id', '').strip()
     item_id = request.args.get('item_id', type=int)
 
-    p = Participant.query.filter_by(lkc_id=lkc_id).first()
-    if not p:
+    participants = Participant.query.filter_by(lkc_id=lkc_id).all()
+    if not participants:
         return jsonify({'found': False})
 
-    result = {
-        'found': True,
-        'id': p.id,
-        'full_name': p.full_name,
-        'category': p.category,
-        'gender': p.gender,
-        'chest_number': p.chest_number,
-        'eligible': True,
-        'eligibility_issues': [],
-    }
+    item = CompetitionItem.query.get(item_id) if item_id else None
 
-    if item_id:
-        item = CompetitionItem.query.get(item_id)
+    def build_result(p):
+        result = {
+            'found': True,
+            'id': p.id,
+            'lkc_id': p.lkc_id,
+            'full_name': p.full_name,
+            'category': p.category,
+            'gender': p.gender,
+            'chest_number': p.chest_number,
+            'eligible': True,
+            'eligibility_issues': [],
+        }
         if item:
             issues = []
-            # 1. Age category must match (Common events accept everyone)
-            # Exception: Super Seniors may enter Senior events unless the same event
-            # exists in the Super Senior category.
             if item.category != 'Common' and p.category != item.category:
                 if p.category == 'Super Senior' and item.category == 'Senior':
                     if CompetitionItem.query.filter_by(name=item.name, category='Super Senior').first():
@@ -470,11 +468,7 @@ def participant_by_lkc_id():
                         f'Category mismatch: participant is {p.category}, '
                         f'this event is for {item.category}.'
                     )
-            # 2. Participant must be individually registered for this group event
-            registered = Entry.query.filter_by(
-                participant_id=p.id, item_id=item_id
-            ).first()
-            if not registered:
+            if not Entry.query.filter_by(participant_id=p.id, item_id=item_id).first():
                 issues.append(
                     f'Not individually registered for "{item.name}". '
                     f'Register the participant for this event first.'
@@ -483,8 +477,14 @@ def participant_by_lkc_id():
                 result['eligible'] = False
                 result['eligibility_issues'] = issues
                 result['eligible_group_items'] = _eligible_group_items_for(p)
+        return result
 
-    return jsonify(result)
+    candidates = [build_result(p) for p in participants]
+
+    if len(candidates) == 1:
+        return jsonify(candidates[0])
+
+    return jsonify({'found': True, 'multiple': True, 'candidates': candidates})
 
 
 def _eligible_group_items_for(participant):

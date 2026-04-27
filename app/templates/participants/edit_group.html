@@ -47,6 +47,7 @@
           </button>
         </div>
         <div id="lookupMsg" class="small mb-2 d-none"></div>
+        <div id="candidateList" class="mb-2 d-none"></div>
 
         <div id="memberList" class="list-group mb-2"></div>
         <div id="memberCount" class="text-muted small mb-3">0 member(s)</div>
@@ -75,11 +76,40 @@ const memberCount  = document.getElementById('memberCount');
 const memberInputs = document.getElementById('memberInputs');
 
 const members = {};
+const candidateListEl = document.getElementById('candidateList');
 
 function showMsg(html, type = 'danger') {
   lookupMsg.className = `small mb-2 text-${type}`;
   lookupMsg.innerHTML = html;
   lookupMsg.classList.remove('d-none');
+}
+
+function clearCandidates() {
+  candidateListEl.innerHTML = '';
+  candidateListEl.classList.add('d-none');
+}
+
+function showCandidates(candidates) {
+  candidateListEl.innerHTML = '<div class="small fw-semibold mb-1 text-muted">Multiple participants found — select one to add:</div>';
+  candidates.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2';
+    const eligible = c.eligible !== false;
+    row.innerHTML =
+      `<span>
+         <strong>${c.lkc_id}</strong> — ${c.full_name}
+         <span class="text-muted ms-1">(${c.category}, ${c.gender})</span>
+         ${!eligible ? '<span class="badge bg-warning text-dark ms-1">Ineligible</span>' : ''}
+       </span>
+       <button type="button" class="btn btn-sm btn-outline-primary flex-shrink-0">Select</button>`;
+    row.querySelector('button').addEventListener('click', () => {
+      clearCandidates();
+      addParticipant(c);
+    });
+    candidateListEl.appendChild(row);
+  });
+  candidateListEl.classList.remove('d-none');
+  candidateListEl.classList.add('list-group');
 }
 
 function renderMembers() {
@@ -90,7 +120,7 @@ function renderMembers() {
     const item = document.createElement('div');
     item.className = 'list-group-item d-flex justify-content-between align-items-center';
     item.innerHTML =
-      `<span><strong>#${m.chest_number}</strong> — ${m.full_name}
+      `<span><strong>#${m.chest_number}</strong> — ${m.lkc_id ? `<span class="text-muted">${m.lkc_id}</span> ` : ''}${m.full_name}
        <span class="text-muted">(${m.category}, ${m.gender})</span></span>
        <button type="button" class="btn btn-sm btn-outline-danger" data-id="${m.id}">
          <i class="bi bi-x"></i>
@@ -110,10 +140,35 @@ function renderMembers() {
   memberCount.textContent = `${list.length} member(s)`;
 }
 
+function addParticipant(d) {
+  if (members[d.id]) {
+    showMsg(`${d.full_name} is already added.`, 'warning');
+    return;
+  }
+  if (d.eligible === false && d.eligibility_issues.length) {
+    const items = d.eligible_group_items || [];
+    const canJoin = items.length
+      ? `<div class="mt-2">Can be added to: ${items.map(i => `<span class="badge bg-secondary me-1">${i.name} (${i.category})</span>`).join('')}</div>`
+      : `<div class="mt-2 text-muted">Not registered for any group events.</div>`;
+    showMsg(
+      `<strong>${d.full_name}</strong> cannot be added to this event:<br>` +
+      d.eligibility_issues.map(i => `&bull; ${i}`).join('<br>') +
+      canJoin
+    );
+    return;
+  }
+  members[d.id] = d;
+  lkcIdInput.value = 'LKC';
+  lkcIdInput.focus();
+  lookupMsg.classList.add('d-none');
+  renderMembers();
+}
+
 function addMember() {
   const lkcId = lkcIdInput.value.trim().toUpperCase();
   if (!lkcId || lkcId === 'LKC') return;
   lookupMsg.classList.add('d-none');
+  clearCandidates();
 
   const url = `/participants/api/by-lkc-id?id=${encodeURIComponent(lkcId)}&item_id=${ITEM_ID}`;
 
@@ -124,27 +179,11 @@ function addMember() {
         showMsg(`No participant found with LKC ID "${lkcId}".`);
         return;
       }
-      if (members[d.id]) {
-        showMsg(`${d.full_name} is already added.`, 'warning');
+      if (d.multiple) {
+        showCandidates(d.candidates);
         return;
       }
-      if (d.eligible === false && d.eligibility_issues.length) {
-        const items = d.eligible_group_items || [];
-        const canJoin = items.length
-          ? `<div class="mt-2">Can be added to: ${items.map(i => `<span class="badge bg-secondary me-1">${i.name} (${i.category})</span>`).join('')}</div>`
-          : `<div class="mt-2 text-muted">Not registered for any group events.</div>`;
-        showMsg(
-          `<strong>${d.full_name}</strong> cannot be added to this event:<br>` +
-          d.eligibility_issues.map(i => `&bull; ${i}`).join('<br>') +
-          canJoin
-        );
-        return;
-      }
-      members[d.id] = d;
-      lkcIdInput.value = 'LKC';
-      lkcIdInput.focus();
-      lookupMsg.classList.add('d-none');
-      renderMembers();
+      addParticipant(d);
     });
 }
 
