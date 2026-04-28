@@ -44,8 +44,11 @@ def template_setup():
         db.session.commit()
 
     if request.method == 'POST':
-        cfg.cert_title_text = request.form.get('cert_title_text', 'Certificate of Achievement').strip()
-        cfg.cert_font_colour = request.form.get('cert_font_colour', '#1a1a2e').strip()
+        cfg.cert_title_text      = request.form.get('cert_title_text', 'Certificate of Achievement').strip()
+        cfg.cert_font_colour     = request.form.get('cert_font_colour',     '#1a1a2e').strip()
+        cfg.cert_heading_colour  = request.form.get('cert_heading_colour',  '#8b6914').strip()
+        cfg.cert_title_colour    = request.form.get('cert_title_colour',    '#1a1a2e').strip()
+        cfg.cert_name_colour     = request.form.get('cert_name_colour',     '#8b6914').strip()
 
         # Handle background image upload
         if 'bg_image' in request.files:
@@ -83,6 +86,9 @@ def _make_cert(cfg, name, item_name, category, position_label):
         bg_image_path=bg_path,
         title_text=cfg.cert_title_text if cfg else 'Certificate of Achievement',
         font_colour=cfg.cert_font_colour if cfg else '#1a1a2e',
+        heading_colour=cfg.cert_heading_colour if cfg else '#8b6914',
+        title_colour=cfg.cert_title_colour if cfg else '#1a1a2e',
+        name_colour=cfg.cert_name_colour if cfg else '#8b6914',
     )
 
 

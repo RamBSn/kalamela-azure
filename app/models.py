@@ -18,7 +18,10 @@ class EventConfig(db.Model):
     cert_bg_image = db.Column(db.String(300), nullable=True)
     cert_font = db.Column(db.String(100), default='Helvetica')
     cert_font_size = db.Column(db.Integer, default=24)
-    cert_font_colour = db.Column(db.String(10), default='#000000')
+    cert_font_colour = db.Column(db.String(10), default='#1a1a2e')   # body text
+    cert_heading_colour = db.Column(db.String(10), default='#8b6914')  # event name
+    cert_title_colour = db.Column(db.String(10), default='#1a1a2e')   # certificate title
+    cert_name_colour = db.Column(db.String(10), default='#8b6914')    # participant name
     cert_title_text = db.Column(db.String(200), default='Certificate of Achievement')
     cert_body_text = db.Column(db.Text, default='This is to certify that {name} has achieved {position} in {item} ({category}) at {event_name} on {date}.')
     scoresheet_blank_rows = db.Column(db.Integer, default=3)

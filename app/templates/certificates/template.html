@@ -34,9 +34,33 @@
         </div>
 
         <div class="mb-3">
-          <label class="form-label fw-semibold">Text Colour</label>
-          <input type="color" name="cert_font_colour" class="form-control form-control-color"
-                 value="{{ cfg.cert_font_colour if cfg else '#1a1a2e' }}">
+          <label class="form-label fw-semibold">Text Colours</label>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-text d-block mb-1">Event name heading</label>
+              <input type="color" name="cert_heading_colour" class="form-control form-control-color w-100"
+                     value="{{ cfg.cert_heading_colour if cfg and cfg.cert_heading_colour else '#8b6914' }}"
+                     title="Event name heading colour">
+            </div>
+            <div class="col-6">
+              <label class="form-text d-block mb-1">Certificate title</label>
+              <input type="color" name="cert_title_colour" class="form-control form-control-color w-100"
+                     value="{{ cfg.cert_title_colour if cfg and cfg.cert_title_colour else '#1a1a2e' }}"
+                     title="Certificate title colour">
+            </div>
+            <div class="col-6">
+              <label class="form-text d-block mb-1">Participant name</label>
+              <input type="color" name="cert_name_colour" class="form-control form-control-color w-100"
+                     value="{{ cfg.cert_name_colour if cfg and cfg.cert_name_colour else '#8b6914' }}"
+                     title="Participant name colour">
+            </div>
+            <div class="col-6">
+              <label class="form-text d-block mb-1">Body text</label>
+              <input type="color" name="cert_font_colour" class="form-control form-control-color w-100"
+                     value="{{ cfg.cert_font_colour if cfg and cfg.cert_font_colour else '#1a1a2e' }}"
+                     title="Body text colour">
+            </div>
+          </div>
         </div>
 
         <div class="alert alert-info small">
@@ -71,16 +95,20 @@
         <div style="position:relative;z-index:1;{% if cfg and cfg.cert_bg_image %}background:rgba(255,255,255,0.12);border-radius:6px;padding:0.5rem;{% endif %}">
           <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
                alt="LKC" style="height:48px;width:auto;object-fit:contain;margin-bottom:6px">
-          <div class="fw-bold mb-2" style="color:#8b6914;font-size:1rem;">
+          {% set heading_col = cfg.cert_heading_colour if cfg and cfg.cert_heading_colour else '#8b6914' %}
+          {% set title_col   = cfg.cert_title_colour   if cfg and cfg.cert_title_colour   else '#1a1a2e' %}
+          {% set name_col    = cfg.cert_name_colour    if cfg and cfg.cert_name_colour    else '#8b6914' %}
+          {% set body_col    = cfg.cert_font_colour    if cfg and cfg.cert_font_colour    else '#1a1a2e' %}
+          <div class="fw-bold mb-2" style="color:{{ heading_col }};font-size:1rem;">
             {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela 2026' }}
           </div>
-          <h4 class="fw-bold">{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}</h4>
-          <hr style="border-color:#8b6914;border-width:2px;">
-          <p class="mb-1">This is to certify that</p>
-          <h5 class="fw-bold" style="color:#8b6914;">Participant Name</h5>
-          <p class="mb-1">has achieved <strong>1st Prize</strong> in</p>
-          <h6 class="fw-bold">Folk Dance — Junior</h6>
-          <p class="text-muted small">
+          <h4 class="fw-bold" style="color:{{ title_col }};">{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}</h4>
+          <hr style="border-color:{{ heading_col }};border-width:2px;">
+          <p class="mb-1" style="color:{{ body_col }};">This is to certify that</p>
+          <h5 class="fw-bold" style="color:{{ name_col }};">Participant Name</h5>
+          <p class="mb-1" style="color:{{ body_col }};">has achieved <strong>1st Prize</strong> in</p>
+          <h6 class="fw-bold" style="color:{{ title_col }};">Folk Dance — Junior</h6>
+          <p class="small" style="color:{{ body_col }};">
             at {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela 2026' }}
             on {{ cfg.event_date.strftime('%d %B %Y') if cfg and cfg.event_date else '01 May 2026' }}
           </p>

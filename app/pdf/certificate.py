@@ -41,6 +41,9 @@ def generate_certificate(
     title_text: str = 'Certificate of Achievement',
     body_template: str = None,
     font_colour: str = '#1a1a2e',
+    heading_colour: str = '#8b6914',
+    title_colour: str = '#1a1a2e',
+    name_colour: str = '#8b6914',
 ) -> bytes:
     try:
         from reportlab.lib.pagesizes import A4, landscape
@@ -78,7 +81,13 @@ def generate_certificate(
                         width=wm_size, height=wm_size,
                         preserveAspectRatio=True, mask='auto')
 
-    text_colour = HexColor(font_colour if font_colour.startswith('#') else '#1a1a2e')
+    def _hex(val, fallback):
+        return HexColor(val if val and val.startswith('#') else fallback)
+
+    text_colour    = _hex(font_colour,    '#1a1a2e')
+    heading_col    = _hex(heading_colour, '#8b6914')
+    title_col      = _hex(title_colour,   '#1a1a2e')
+    name_col       = _hex(name_colour,    '#8b6914')
 
     # ── Logo — top centre, inside the gold border frame ──────────────────────
     # Inner border top edge is at page_h - 18mm; logo sits 6mm below it.
@@ -90,13 +99,13 @@ def generate_certificate(
                     preserveAspectRatio=True, mask='auto')
 
     # ── Event name — main heading in Times New Roman ──────────────────────────
-    c.setFillColor(HexColor('#8b6914'))
+    c.setFillColor(heading_col)
     c.setFont('Times-Bold', 20)
     c.drawCentredString(page_w / 2, page_h - 60 * mm, event_name)
 
     # ── Certificate title ─────────────────────────────────────────────────────
     c.setFont('Times-Bold', 30)
-    c.setFillColor(HexColor('#1a1a2e'))
+    c.setFillColor(title_col)
     c.drawCentredString(page_w / 2, page_h - 76 * mm, title_text)
 
     # ── Decorative line ───────────────────────────────────────────────────────
@@ -111,7 +120,7 @@ def generate_certificate(
     c.drawCentredString(page_w / 2, body_y, 'This is to certify that')
 
     c.setFont('Times-Bold', 22)
-    c.setFillColor(HexColor('#8b6914'))
+    c.setFillColor(name_col)
     c.drawCentredString(page_w / 2, body_y - 14 * mm, participant_name)
 
     c.setFont('Times-Roman', 13)
@@ -119,7 +128,7 @@ def generate_certificate(
     c.drawCentredString(page_w / 2, body_y - 26 * mm, f'has achieved  {position}  in')
 
     c.setFont('Times-Bold', 16)
-    c.setFillColor(HexColor('#1a1a2e'))
+    c.setFillColor(title_col)
     c.drawCentredString(page_w / 2, body_y - 38 * mm, f'{item_name}  —  {category}')
 
     c.setFont('Times-Roman', 12)

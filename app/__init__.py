@@ -127,8 +127,11 @@ def _apply_migrations():
     if 'event_config' in tables:
         existing = {c['name'] for c in inspector.get_columns('event_config')}
         for col, ddl in [
-            ('welcome_logo',    'ALTER TABLE event_config ADD COLUMN welcome_logo VARCHAR(300)'),
-            ('welcome_tagline', 'ALTER TABLE event_config ADD COLUMN welcome_tagline VARCHAR(300)'),
+            ('welcome_logo',       'ALTER TABLE event_config ADD COLUMN welcome_logo VARCHAR(300)'),
+            ('welcome_tagline',    'ALTER TABLE event_config ADD COLUMN welcome_tagline VARCHAR(300)'),
+            ('cert_heading_colour','ALTER TABLE event_config ADD COLUMN cert_heading_colour VARCHAR(10) DEFAULT "#8b6914"'),
+            ('cert_title_colour',  'ALTER TABLE event_config ADD COLUMN cert_title_colour VARCHAR(10) DEFAULT "#1a1a2e"'),
+            ('cert_name_colour',   'ALTER TABLE event_config ADD COLUMN cert_name_colour VARCHAR(10) DEFAULT "#8b6914"'),
         ]:
             if col not in existing:
                 db.session.execute(text(ddl))
