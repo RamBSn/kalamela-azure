@@ -133,8 +133,8 @@ def generate_certificate(
     c.line(page_w - 120 * mm, sig_y, page_w - 60 * mm, sig_y)
     c.setFont('Helvetica', 9)
     c.setFillColor(HexColor('#555555'))
-    c.drawCentredString(90 * mm, sig_y - 5 * mm, 'Organiser')
-    c.drawCentredString(page_w - 90 * mm, sig_y - 5 * mm, 'Chairperson')
+    c.drawCentredString(90 * mm, sig_y - 5 * mm, 'President')
+    c.drawCentredString(page_w - 90 * mm, sig_y - 5 * mm, 'Secretary')
 
     c.save()
     return buf.getvalue()
