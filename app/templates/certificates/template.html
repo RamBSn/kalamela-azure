@@ -51,15 +51,24 @@
 
   <div class="col-md-6">
     <div class="card p-4 bg-light">
-      <h6 class="fw-semibold mb-3">Certificate Preview (default design)</h6>
-      <div class="border rounded p-3 bg-white text-center" style="font-family:serif;position:relative;overflow:hidden;">
-        {# Watermark #}
+      <h6 class="fw-semibold mb-3">Certificate Preview</h6>
+      <div class="border rounded p-3 text-center" style="
+          font-family:serif;position:relative;overflow:hidden;
+          {% if cfg and cfg.cert_bg_image %}
+            background-image:url('{{ url_for('static', filename='uploads/' + cfg.cert_bg_image) }}');
+            background-size:cover;background-position:center;
+          {% else %}
+            background-color:#f5f0e8;
+          {% endif %}">
+        {% if not (cfg and cfg.cert_bg_image) %}
+        {# Watermark — only shown when no background image, matching PDF behaviour #}
         <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
              alt="" aria-hidden="true"
              style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
                     width:55%;opacity:0.07;pointer-events:none;z-index:0;">
+        {% endif %}
         {# Content #}
-        <div style="position:relative;z-index:1;">
+        <div style="position:relative;z-index:1;{% if cfg and cfg.cert_bg_image %}background:rgba(255,255,255,0.12);border-radius:6px;padding:0.5rem;{% endif %}">
           <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
                alt="LKC" style="height:48px;width:auto;object-fit:contain;margin-bottom:6px">
           <div class="fw-bold mb-2" style="color:#8b6914;font-size:1rem;">
