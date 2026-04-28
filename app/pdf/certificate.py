@@ -67,14 +67,16 @@ def generate_certificate(
         c.setLineWidth(1)
         c.rect(18 * mm, 18 * mm, page_w - 36 * mm, page_h - 36 * mm, fill=0, stroke=1)
 
-    # ── Watermark — dimmed logo centred on the full page ──────────────────────
-    wm = _dimmed_logo_reader(opacity=0.07)
-    if wm:
-        wm_size = 160 * mm
-        c.drawImage(wm,
-                    (page_w - wm_size) / 2, (page_h - wm_size) / 2,
-                    width=wm_size, height=wm_size,
-                    preserveAspectRatio=True, mask='auto')
+    # ── Watermark — dimmed logo centred on the full page (default bg only) ───
+    # Skipped when a custom background image is used — it would clash with it.
+    if not (bg_image_path and os.path.exists(bg_image_path)):
+        wm = _dimmed_logo_reader(opacity=0.07)
+        if wm:
+            wm_size = 160 * mm
+            c.drawImage(wm,
+                        (page_w - wm_size) / 2, (page_h - wm_size) / 2,
+                        width=wm_size, height=wm_size,
+                        preserveAspectRatio=True, mask='auto')
 
     text_colour = HexColor(font_colour if font_colour.startswith('#') else '#1a1a2e')
 
