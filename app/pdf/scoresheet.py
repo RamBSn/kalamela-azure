@@ -3,7 +3,10 @@ Judge Score Sheet PDF generator.
 Produces one PDF with 3 copies (pages) per event — one per judge.
 """
 import io
+import os
 from app.models import CompetitionItem, Entry, EventConfig
+
+_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'lkc-logo.jpeg')
 
 
 def _entry_gender(entry):
@@ -72,8 +75,27 @@ def generate_scoresheet(item_id: int, gender: str = None, num_judges: int = 3) -
     story = []
 
     def build_copy(judge_num):
-        story.append(Paragraph('Association Kalamela Management System', title_style))
-        story.append(Paragraph(event_name, sub_style))
+        # Header: logo (left) + title (centre) + mirror spacer (right) to keep text centred
+        title_para = Paragraph(
+            '<b>Association Kalamela Management System</b><br/>' + event_name,
+            ParagraphStyle('hdr', parent=styles['Normal'], fontSize=12,
+                           fontName='Helvetica-Bold', alignment=TA_CENTER, leading=16),
+        )
+        logo_col_w = 22 * mm
+        if os.path.exists(_LOGO_PATH):
+            from reportlab.platypus import Image as RLImage
+            logo_cell = RLImage(_LOGO_PATH, width=16 * mm, height=16 * mm)
+        else:
+            logo_cell = ''
+        hdr_table = Table(
+            [[logo_cell, title_para, '']],
+            colWidths=[logo_col_w, page_w - logo_col_w * 2 - 20 * mm, logo_col_w],
+        )
+        hdr_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN',  (0, 0), (-1, -1), 'CENTER'),
+        ]))
+        story.append(hdr_table)
         story.append(Spacer(1, 4 * mm))
 
         # Header row

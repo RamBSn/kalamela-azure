@@ -5,6 +5,8 @@ Supports a background image and customisable text layout from EventConfig.
 import io
 import os
 
+_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'static', 'lkc-logo.jpeg')
+
 
 def generate_certificate(
     event_name: str,
@@ -53,6 +55,13 @@ def generate_certificate(
                fill=0, stroke=1)
 
     text_colour = HexColor(font_colour if font_colour.startswith('#') else '#1a1a2e')
+
+    # LKC logo — top-left corner
+    if os.path.exists(_LOGO_PATH):
+        logo_h = 18 * mm
+        c.drawImage(_LOGO_PATH, 22 * mm, page_h - 38 * mm,
+                    width=logo_h, height=logo_h,
+                    preserveAspectRatio=True, mask='auto')
 
     # Organisation name
     c.setFillColor(HexColor('#8b6914'))
