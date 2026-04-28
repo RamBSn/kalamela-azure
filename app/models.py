@@ -12,7 +12,7 @@ group_members = db.Table(
 class EventConfig(db.Model):
     __tablename__ = 'event_config'
     id = db.Column(db.Integer, primary_key=True)
-    event_name = db.Column(db.String(200), nullable=False, default='Leicester Kerala Community Kalamela 2026')
+    event_name = db.Column(db.String(200), nullable=False, default='Leicester Kerala Community Kalamela')
     event_date = db.Column(db.Date, nullable=True)
     venue = db.Column(db.String(300), nullable=True)
     cert_bg_image = db.Column(db.String(300), nullable=True)

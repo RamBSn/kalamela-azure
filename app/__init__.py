@@ -136,3 +136,12 @@ def _apply_migrations():
             if col not in existing:
                 db.session.execute(text(ddl))
                 db.session.commit()
+
+    # Data migration: rename legacy event names to the correct LKC full name
+    if 'event_config' in tables:
+        db.session.execute(text(
+            "UPDATE event_config SET event_name = 'Leicester Kerala Community Kalamela'"
+            " WHERE event_name IN ('Association Kalamela 2026',"
+            "                      'Leicester Kerala Community Kalamela 2026')"
+        ))
+        db.session.commit()

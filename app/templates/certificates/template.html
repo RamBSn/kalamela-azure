@@ -100,7 +100,7 @@
           {% set name_col    = cfg.cert_name_colour    if cfg and cfg.cert_name_colour    else '#8b6914' %}
           {% set body_col    = cfg.cert_font_colour    if cfg and cfg.cert_font_colour    else '#1a1a2e' %}
           <div class="fw-bold mb-2" style="color:{{ heading_col }};font-size:1rem;">
-            {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela 2026' }}
+            {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela' }}
           </div>
           <h4 class="fw-bold" style="color:{{ title_col }};">{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}</h4>
           <hr style="border-color:{{ heading_col }};border-width:2px;">
@@ -109,7 +109,7 @@
           <p class="mb-1" style="color:{{ body_col }};">has achieved <strong>1st Prize</strong> in</p>
           <h6 class="fw-bold" style="color:{{ title_col }};">Folk Dance — Junior</h6>
           <p class="small" style="color:{{ body_col }};">
-            at {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela 2026' }}
+            at {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela' }}
             on {{ cfg.event_date.strftime('%d %B %Y') if cfg and cfg.event_date else '01 May 2026' }}
           </p>
           <div class="d-flex justify-content-around mt-3 text-muted small">
