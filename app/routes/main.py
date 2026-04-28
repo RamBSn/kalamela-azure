@@ -13,7 +13,7 @@ def inject_event():
             'event_name': cfg.event_name,
             'event_date': cfg.event_date.strftime('%d %B %Y') if cfg.event_date else '',
         }
-    return {'event_name': 'Association Kalamela Management System', 'event_date': ''}
+    return {'event_name': 'Leicester Kerala Community Kalamela 2026', 'event_date': ''}
 
 
 @main_bp.route('/')

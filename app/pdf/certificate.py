@@ -78,31 +78,32 @@ def generate_certificate(
 
     text_colour = HexColor(font_colour if font_colour.startswith('#') else '#1a1a2e')
 
-    # ── Logo — top centre ─────────────────────────────────────────────────────
+    # ── Logo — top centre, inside the gold border frame ──────────────────────
+    # Inner border top edge is at page_h - 18mm; logo sits 6mm below it.
     if os.path.exists(_LOGO_PATH):
         logo_h = 24 * mm
         c.drawImage(_LOGO_PATH,
-                    (page_w - logo_h) / 2, page_h - 38 * mm,
+                    (page_w - logo_h) / 2, page_h - 48 * mm,
                     width=logo_h, height=logo_h,
                     preserveAspectRatio=True, mask='auto')
 
     # ── Event name — main heading in Times New Roman ──────────────────────────
     c.setFillColor(HexColor('#8b6914'))
     c.setFont('Times-Bold', 20)
-    c.drawCentredString(page_w / 2, page_h - 52 * mm, event_name)
+    c.drawCentredString(page_w / 2, page_h - 60 * mm, event_name)
 
     # ── Certificate title ─────────────────────────────────────────────────────
     c.setFont('Times-Bold', 30)
     c.setFillColor(HexColor('#1a1a2e'))
-    c.drawCentredString(page_w / 2, page_h - 72 * mm, title_text)
+    c.drawCentredString(page_w / 2, page_h - 76 * mm, title_text)
 
     # ── Decorative line ───────────────────────────────────────────────────────
     c.setStrokeColor(HexColor('#8b6914'))
     c.setLineWidth(1.5)
-    c.line(60 * mm, page_h - 78 * mm, page_w - 60 * mm, page_h - 78 * mm)
+    c.line(60 * mm, page_h - 82 * mm, page_w - 60 * mm, page_h - 82 * mm)
 
     # ── Body text ─────────────────────────────────────────────────────────────
-    body_y = page_h - 98 * mm
+    body_y = page_h - 102 * mm
     c.setFont('Times-Roman', 13)
     c.setFillColor(text_colour)
     c.drawCentredString(page_w / 2, body_y, 'This is to certify that')
