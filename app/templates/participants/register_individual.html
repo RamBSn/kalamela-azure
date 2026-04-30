@@ -118,6 +118,8 @@
           {% endif %}
         {% endfor %}
 
+        <div id="eventLimitMsg" class="alert alert-info mt-3 d-none" role="status"></div>
+
         <div id="eventCountWarning" class="alert alert-danger mt-3 d-none">
           <strong>Too many events selected.</strong>
           Maximum allowed: 3 solo + 1 group, or 2 solo + 2 group (4 total).
@@ -287,6 +289,7 @@ function filterItemsByCategory(category) {
   });
   document.getElementById('noItemsMsg').classList.toggle('d-none', !category || anyVisible);
   fillParentNameIfNeeded(category);
+  checkEventCount();
 }
 
 document.getElementById('dobInput').addEventListener('change', function() {
@@ -308,10 +311,47 @@ function checkEventCount() {
   const checked    = [...document.querySelectorAll('.event-check:checked')];
   const soloCount  = checked.filter(c => c.dataset.type === 'solo').length;
   const groupCount = checked.filter(c => c.dataset.type === 'group').length;
-  const valid = (soloCount <= 3 && groupCount <= 1 && soloCount + groupCount <= 4) ||
-                (soloCount <= 2 && groupCount <= 2 && soloCount + groupCount <= 4);
+  const total      = soloCount + groupCount;
+
+  const valid = (soloCount <= 3 && groupCount <= 1 && total <= 4) ||
+                (soloCount <= 2 && groupCount <= 2 && total <= 4);
+
+  // Can another solo / group still be legally added?
+  const canAddSolo = (soloCount < 3 && groupCount <= 1 && total < 4) ||
+                     (soloCount < 2 && groupCount <= 2 && total < 4);
+  const canAddGroup = (soloCount <= 3 && groupCount < 1 && total < 4) ||
+                      (soloCount <= 2 && groupCount < 2 && total < 4);
+
   eventCountValid = valid;
   document.getElementById('eventCountWarning').classList.toggle('d-none', valid);
+
+  // Limit message
+  const limitEl = document.getElementById('eventLimitMsg');
+  let limitMsg = '';
+  if (valid && !canAddSolo && !canAddGroup) {
+    limitMsg = `<i class="bi bi-lock-fill me-2"></i>Maximum events reached (${soloCount} solo\u202f+\u202f${groupCount} group). Deselect an event to make a different choice.`;
+  } else if (valid && !canAddSolo && canAddGroup) {
+    limitMsg = '<i class="bi bi-info-circle-fill me-2"></i>Solo event limit reached. You may still add a group event.';
+  } else if (valid && canAddSolo && !canAddGroup) {
+    limitMsg = '<i class="bi bi-info-circle-fill me-2"></i>Group event limit reached. You may still add a solo event.';
+  }
+  if (limitMsg) {
+    limitEl.innerHTML = limitMsg;
+    limitEl.classList.remove('d-none');
+  } else {
+    limitEl.classList.add('d-none');
+  }
+
+  // Disable unchecked items that can no longer be selected; re-enable those that can
+  document.querySelectorAll('.event-check:not(:checked)').forEach(cb => {
+    if (SS_EXCLUDED_SENIOR_IDS.has(parseInt(cb.value))) return; // managed by SS logic
+    if (cb.closest('.category-section')?.style.display === 'none') return; // hidden section
+    const isSolo = cb.dataset.type === 'solo';
+    const shouldDisable = (isSolo && !canAddSolo) || (!isSolo && !canAddGroup);
+    cb.disabled = shouldDisable;
+    cb.closest('.form-check').style.opacity = shouldDisable ? '0.45' : '';
+  });
+
   updateSubmitState();
 }
 
