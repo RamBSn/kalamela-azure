@@ -1,9 +1,14 @@
 from collections import defaultdict
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, session, redirect, url_for
 from app import db
 from app.models import Entry, CompetitionItem, Participant, GroupEntry
 
 results_bp = Blueprint('results', __name__)
+
+@results_bp.before_request
+def require_admin():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('auth.login', next=request.path))
 
 CATEGORIES = ['Kids', 'Sub-Junior', 'Junior', 'Senior', 'Super Senior', 'Common']
 POINTS = {1: 5, 2: 3, 3: 1}

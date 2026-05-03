@@ -12,6 +12,11 @@ from app.routes.results import get_event_results, get_all_results, \
 
 certificates_bp = Blueprint('certificates', __name__)
 
+@certificates_bp.before_request
+def require_admin():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('auth.login', next=request.path))
+
 
 @certificates_bp.before_request
 def require_admin():

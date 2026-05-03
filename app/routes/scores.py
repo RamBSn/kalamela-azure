@@ -12,6 +12,11 @@ def _effective_num_judges(item):
 
 scores_bp = Blueprint('scores', __name__)
 
+@scores_bp.before_request
+def require_admin():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('auth.login', next=request.path))
+
 
 @scores_bp.before_request
 def require_admin():

@@ -4,6 +4,11 @@ from app.models import Stage, Entry, CompetitionItem, EventConfig, Participant, 
 
 schedule_bp = Blueprint('schedule', __name__)
 
+@schedule_bp.before_request
+def require_admin():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('auth.login', next=request.path))
+
 
 @schedule_bp.before_request
 def require_admin():

@@ -560,6 +560,7 @@ def participant_by_db_id():
 
 
 @participants_bp.route('/groups')
+@login_required
 def list_groups():
     groups = GroupEntry.query.order_by(GroupEntry.chest_number).all()
     return render_template('participants/groups.html', groups=groups)

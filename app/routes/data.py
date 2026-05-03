@@ -13,6 +13,11 @@ from app.models import (Participant, GroupEntry, Entry, Score,
 
 data_bp = Blueprint('data', __name__)
 
+@data_bp.before_request
+def require_admin():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('auth.login', next=request.path))
+
 
 @data_bp.before_request
 def require_admin():

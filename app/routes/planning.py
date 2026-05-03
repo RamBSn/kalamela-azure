@@ -6,6 +6,11 @@ from app.models import Stage, StagePlanItem, Entry, EventConfig, CompetitionItem
 
 planning_bp = Blueprint('planning', __name__)
 
+@planning_bp.before_request
+def require_admin():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('auth.login', next=request.path))
+
 CATEGORY_ORDER = ['Kids', 'Sub-Junior', 'Junior', 'Senior', 'Super Senior', 'Common']
 
 

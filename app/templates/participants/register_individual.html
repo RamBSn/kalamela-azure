@@ -1,5 +1,27 @@
 {% extends 'base.html' %}
 {% block title %}Register Individual{% endblock %}
+
+{% block extra_css %}
+<style>
+  .stepper { display:flex; align-items:center; gap:0; margin-bottom:1.25rem; }
+  .step-item {
+    flex:1; text-align:center; padding:.5rem .25rem;
+    font-size:.8rem; font-weight:600; color:#adb5bd;
+    border-bottom:3px solid #dee2e6; transition:all .2s;
+  }
+  .step-item.active  { color:#0d6efd; border-bottom-color:#0d6efd; }
+  .step-item.done    { color:#198754; border-bottom-color:#198754; }
+  .step-item .step-num {
+    display:inline-flex; align-items:center; justify-content:center;
+    width:1.6rem; height:1.6rem; border-radius:50%;
+    font-size:.75rem; font-weight:700; margin-bottom:.2rem;
+    background:#dee2e6; color:#6c757d;
+  }
+  .step-item.active .step-num  { background:#0d6efd; color:#fff; }
+  .step-item.done   .step-num  { background:#198754; color:#fff; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <h2><i class="bi bi-person-plus me-2"></i>Register Individual Participant</h2>
@@ -8,28 +30,90 @@
 {% if warnings %}
 <div class="alert alert-danger">
   <strong>Registration blocked — eligibility errors:</strong>
-  <ul class="mb-0 mt-1">
-    {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
-  </ul>
+  <ul class="mb-0 mt-1">{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>
 </div>
 {% endif %}
 
 <div class="row">
   <div class="col-md-8">
-    <div class="card p-4">
-      <form method="post">
-        <h6 class="fw-semibold mb-3">Participant Details</h6>
+
+    {# Step indicator #}
+    <div class="stepper" id="stepper">
+      <div class="step-item active" id="step-ind-1">
+        <div><div class="step-num">1</div></div>
+        Verify
+      </div>
+      <div class="step-item" id="step-ind-2">
+        <div><div class="step-num">2</div></div>
+        Details
+      </div>
+      <div class="step-item" id="step-ind-3">
+        <div><div class="step-num">3</div></div>
+        Events
+      </div>
+    </div>
+
+    <form method="post" novalidate>
+
+      {# ── Step 1: LKC Verification ────────────────────────────────────────── #}
+      <div id="step1" class="card p-4">
+        <h6 class="fw-semibold mb-1">Verify LKC Membership</h6>
+        <p class="text-muted small mb-3">Enter your LKC ID and registered email address to confirm your membership.</p>
+
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label">LKC ID *</label>
+            <input type="text" name="lkc_id" id="lkcIdField" class="form-control"
+                   value="{{ form_data.get('lkc_id','LKC') }}"
+                   pattern="[Ll][Kk][Cc][0-9]{3,4}" maxlength="7"
+                   placeholder="LKC1234">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Email Address *</label>
+            <input type="email" name="email" id="emailField" class="form-control"
+                   value="{{ form_data.get('email','') }}"
+                   placeholder="member@example.com">
+          </div>
+          <div class="col-md-3">
+            <button type="button" id="verifyBtn" class="btn btn-outline-primary w-100">
+              <i class="bi bi-shield-check me-1"></i>Verify
+            </button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-4"></div>
+          <div class="col-md-5">
+            <div class="form-text"><i class="bi bi-info-circle me-1"></i>Use the email registered with your LKC ID</div>
+          </div>
+        </div>
+        <div id="membershipCheckRow" class="mt-3" style="display:none">
+          <div id="membershipStatus" class="p-2 border rounded small"></div>
+        </div>
+
+        <div class="mt-3 d-flex justify-content-between">
+          <a href="{{ url_for('main.welcome') }}" class="btn btn-outline-secondary">Cancel</a>
+          <button type="button" id="nextToStep2" class="btn btn-primary" disabled>
+            Next: Participant Details <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+        </div>
+      </div>
+
+      {# ── Step 2: Participant Details ──────────────────────────────────────── #}
+      <div id="step2" class="card p-4" style="display:none">
+        <h6 class="fw-semibold mb-1">Participant Details</h6>
+        <p class="text-muted small mb-3">Fill in the participant's personal details. Once you enter a date of birth, eligible events will load in the next step.</p>
+
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Participant Name *</label>
-            <input type="text" name="full_name" class="form-control"
-                   value="{{ form_data.get('full_name','') }}" required>
+            <input type="text" name="full_name" id="fullNameField" class="form-control"
+                   value="{{ form_data.get('full_name','') }}">
           </div>
           <div class="col-md-3">
             <label class="form-label">Date of Birth *</label>
             <input type="date" name="date_of_birth" id="dobInput" class="form-control"
                    value="{{ form_data.get('date_of_birth','') }}"
-                   min="1900-01-01" max="{{ today }}" required>
+                   min="1900-01-01" max="{{ today }}">
           </div>
           <div class="col-md-3">
             <label class="form-label">Category</label>
@@ -38,54 +122,50 @@
           </div>
           <div class="col-md-3">
             <label class="form-label">Gender *</label>
-            <select name="gender" class="form-select" required>
+            <select name="gender" id="genderField" class="form-select">
               <option value="">Select...</option>
               <option value="Male" {{ 'selected' if form_data.get('gender')=='Male' }}>Male</option>
               <option value="Female" {{ 'selected' if form_data.get('gender')=='Female' }}>Female</option>
             </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label">LKC ID *</label>
-            <input type="text" name="lkc_id" id="lkcIdField" class="form-control"
-                   value="{{ form_data.get('lkc_id','LKC') }}"
-                   pattern="[Ll][Kk][Cc][0-9]{3,4}"
-                   maxlength="7" placeholder="LKC1234"
-                   title="LKC followed by 3 or 4 digits (e.g. LKC1234)"
-                   required>
-          </div>
-          <div class="col-md-3">
             <label class="form-label">Phone *</label>
-            <input type="text" name="phone" class="form-control"
+            <input type="text" name="phone" id="phoneField" class="form-control"
                    value="{{ form_data.get('phone','07') }}"
                    pattern="07[0-9]{9}" maxlength="11"
-                   placeholder="07XXXXXXXXX"
-                   title="Must be 11 digits starting with 07"
-                   required>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label">Email *</label>
-            <input type="email" name="email" id="emailField" class="form-control"
-                   value="{{ form_data.get('email','') }}"
-                   placeholder="member@example.com"
-                   data-bs-toggle="tooltip" data-bs-placement="top"
-                   title="Use the same email address registered with your LKC ID"
-                   required>
-            <div class="form-text"><i class="bi bi-info-circle me-1"></i>Use email registered with your LKC ID</div>
+                   placeholder="07XXXXXXXXX">
           </div>
           <div class="col-md-6">
             <label class="form-label">Parent / Guardian Name</label>
             <input type="text" name="parent_name" class="form-control"
                    value="{{ form_data.get('parent_name','') }}">
           </div>
-          <div class="col-12" id="membershipCheckRow" style="display:none">
-            <div id="membershipStatus" class="p-2 border rounded small"></div>
-          </div>
         </div>
 
-        <hr class="my-4">
-        <h6 class="fw-semibold mb-3">Enrol in Events <span class="text-muted fw-normal">(max 4: 3 solo + 1 group, or 2 solo + 2 group)</span></h6>
+        <div id="step2Error" class="alert alert-danger mt-3 d-none small"></div>
 
-        <div id="noItemsMsg" class="text-muted d-none">Enter date of birth to see eligible events.</div>
+        <div class="mt-3 d-flex justify-content-between">
+          <button type="button" id="backToStep1" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back
+          </button>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('main.welcome') }}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="button" id="nextToStep3" class="btn btn-primary">
+              Next: Choose Events <i class="bi bi-arrow-right ms-1"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {# ── Step 3: Enrol in Events ──────────────────────────────────────────── #}
+      <div id="step3" class="card p-4" style="display:none">
+        <h6 class="fw-semibold mb-1">Enrol in Events</h6>
+        <p class="text-muted small mb-3">
+          Showing eligible events for <strong id="categoryLabel">your age category</strong>.
+          <span class="text-muted">(Max 4: 3 solo + 1 group, or 2 solo + 2 group)</span>
+        </p>
+
+        <div id="noItemsMsg" class="text-muted d-none">No eligible events found for this age category.</div>
 
         {% set cat_order = ['Kids','Sub-Junior','Junior','Senior','Super Senior','Common'] %}
         {% for cat in cat_order %}
@@ -119,11 +199,9 @@
         {% endfor %}
 
         <div id="eventLimitMsg" class="alert alert-info mt-3 d-none" role="status"></div>
-
         <div id="eventCountWarning" class="alert alert-danger mt-3 d-none">
           <strong>Too many events selected.</strong>
           Maximum allowed: 3 solo + 1 group, or 2 solo + 2 group (4 total).
-          Please deselect some events before continuing.
         </div>
 
         <div class="border-top pt-3 mt-4">
@@ -138,8 +216,7 @@
                target="_blank" rel="noopener noreferrer">LKC GDPR Policy</a>.
           </p>
           <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" name="gdpr_consent"
-                   id="gdprConsent" required>
+            <input class="form-check-input" type="checkbox" name="gdpr_consent" id="gdprConsent">
             <label class="form-check-label small" for="gdprConsent">
               I consent to Leicester Kerala Community collecting and processing the above personal
               information for event management purposes in accordance with the
@@ -149,12 +226,20 @@
           </div>
         </div>
 
-        <div class="mt-2 d-flex gap-2">
-          <button type="submit" id="submitBtn" class="btn btn-primary">Register Participant</button>
-          <a href="{{ url_for('participants.list_participants') }}" class="btn btn-outline-secondary">Cancel</a>
+        <div class="d-flex justify-content-between">
+          <button type="button" id="backToStep2" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Back
+          </button>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('main.welcome') }}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" id="submitBtn" class="btn btn-primary">
+              <i class="bi bi-person-check me-1"></i>Register Participant
+            </button>
+          </div>
         </div>
-      </form>
-    </div>
+      </div>
+
+    </form>
   </div>
 </div>
 {% endblock %}
@@ -168,38 +253,84 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── Submit-state (membership + event-count must both pass) ────────────────────
+// ── State ─────────────────────────────────────────────────────────────────────
 let membershipVerified   = false;
 let eventCountValid      = true;
 let membershipHolderName = '';
-let currentCategory      = '';   // set whenever DOB resolves; used by fillParentNameIfNeeded
+let currentCategory      = '';
+let currentStep          = 1;
 
 const JUNIOR_CATS = new Set(['Kids', 'Sub-Junior', 'Junior']);
 
-// Fill Parent/Guardian name from the LKC membership holder when registering
-// a child (Kids / Sub-Junior / Junior) — only if the field is still empty.
-// catArg: explicit category string (from filterItemsByCategory) or omit to use currentCategory.
-function fillParentNameIfNeeded(catArg) {
-  if (!membershipHolderName) return;
-  const cat = (catArg !== undefined && catArg !== null && catArg !== '')
-                ? String(catArg)
-                : currentCategory;
-  if (!JUNIOR_CATS.has(cat)) return;
-  const field = document.querySelector('input[name="parent_name"]');
-  if (field && !field.value.trim()) field.value = membershipHolderName;
+// ── Step navigation ───────────────────────────────────────────────────────────
+function goToStep(n) {
+  document.getElementById(`step${currentStep}`).style.display = 'none';
+  document.getElementById(`step${n}`).style.display = '';
+  [1, 2, 3].forEach(i => {
+    const ind = document.getElementById(`step-ind-${i}`);
+    ind.classList.toggle('active', i === n);
+    ind.classList.toggle('done',   i < n);
+  });
+  currentStep = n;
+  // Scroll to top of the stepper
+  document.getElementById('stepper').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function updateSubmitState() {
-  document.getElementById('submitBtn').disabled = !membershipVerified || !eventCountValid;
+// ── Step 2 validation ─────────────────────────────────────────────────────────
+function validateStep2() {
+  const name   = document.getElementById('fullNameField').value.trim();
+  const dob    = document.getElementById('dobInput').value;
+  const gender = document.getElementById('genderField').value;
+  const phone  = document.getElementById('phoneField').value.trim();
+  const errors = [];
+  if (!name)                          errors.push('Participant name is required.');
+  if (!dob)                           errors.push('Date of birth is required.');
+  if (!currentCategory)               errors.push('Date of birth could not be resolved to an age category.');
+  if (!gender)                        errors.push('Gender is required.');
+  if (!phone || !/^07[0-9]{9}$/.test(phone)) errors.push('Phone must be 11 digits starting with 07.');
+  const errEl = document.getElementById('step2Error');
+  if (errors.length) {
+    errEl.innerHTML = errors.map(e => `<div>${escHtml(e)}</div>`).join('');
+    errEl.classList.remove('d-none');
+    return false;
+  }
+  errEl.classList.add('d-none');
+  return true;
 }
+
+// ── Back / Next wiring ────────────────────────────────────────────────────────
+document.getElementById('backToStep1').addEventListener('click', () => goToStep(1));
+document.getElementById('backToStep2').addEventListener('click', () => goToStep(2));
+
+document.getElementById('nextToStep2').addEventListener('click', () => goToStep(2));
+
+document.getElementById('nextToStep3').addEventListener('click', () => {
+  if (!validateStep2()) return;
+  filterItemsByCategory(currentCategory);
+  document.getElementById('categoryLabel').textContent = currentCategory;
+  goToStep(3);
+});
+
+// ── Submit guard ──────────────────────────────────────────────────────────────
+document.querySelector('form').addEventListener('submit', function(e) {
+  if (!gdprConsent.checked) {
+    e.preventDefault();
+    gdprConsent.closest('.form-check').scrollIntoView({ behavior: 'smooth' });
+    gdprConsent.focus();
+    return;
+  }
+  if (!eventCountValid) {
+    e.preventDefault();
+    document.getElementById('eventCountWarning').classList.remove('d-none');
+  }
+});
 
 // ── LKC Membership check ──────────────────────────────────────────────────────
 function setMembershipStatus(html, verified) {
-  const row = document.getElementById('membershipCheckRow');
   document.getElementById('membershipStatus').innerHTML = html;
-  row.style.display = '';
+  document.getElementById('membershipCheckRow').style.display = '';
   membershipVerified = verified;
-  updateSubmitState();
+  document.getElementById('nextToStep2').disabled = !verified;
 }
 
 function checkMembership() {
@@ -215,13 +346,12 @@ function checkMembership() {
   fetch('/participants/api/verify-membership', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({lkc_id: lkcId, email: email})
+    body: JSON.stringify({ lkc_id: lkcId, email: email })
   })
   .then(r => r.json())
   .then(d => {
     if (d.status === 'active') {
       membershipHolderName = d.holder_name || '';
-      fillParentNameIfNeeded();
       setMembershipStatus(
         `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>${escHtml(d.message)}</span>`,
         true
@@ -233,7 +363,6 @@ function checkMembership() {
         false
       );
     } else {
-      // Network / server error — allow to proceed with a warning
       setMembershipStatus(
         `<span class="text-warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>${escHtml(d.message)}</span>`,
         true
@@ -246,17 +375,37 @@ function checkMembership() {
   ));
 }
 
-// Reset verified flag whenever either field changes
+document.getElementById('verifyBtn').addEventListener('click', checkMembership);
 ['lkcIdField', 'emailField'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
-    membershipVerified   = false;
+    membershipVerified = false;
     membershipHolderName = '';
     document.getElementById('membershipCheckRow').style.display = 'none';
-    updateSubmitState();
+    document.getElementById('nextToStep2').disabled = true;
   });
 });
-document.getElementById('lkcIdField').addEventListener('blur', checkMembership);
-document.getElementById('emailField').addEventListener('blur',  checkMembership);
+document.getElementById('emailField').addEventListener('blur', checkMembership);
+
+// ── DOB → category ────────────────────────────────────────────────────────────
+document.getElementById('dobInput').addEventListener('change', function() {
+  const dob = this.value;
+  if (!dob) {
+    currentCategory = '';
+    document.getElementById('categoryDisplay').value = 'Auto-assigned';
+    return;
+  }
+  fetch(`/participants/api/category-from-dob?dob=${dob}`)
+    .then(r => r.json())
+    .then(d => {
+      currentCategory = d.category || '';
+      document.getElementById('categoryDisplay').value = currentCategory || 'Unknown';
+      // Auto-fill parent name for junior categories
+      if (membershipHolderName && JUNIOR_CATS.has(currentCategory)) {
+        const f = document.querySelector('input[name="parent_name"]');
+        if (f && !f.value.trim()) f.value = membershipHolderName;
+      }
+    });
+});
 
 // ── Category / event filter ───────────────────────────────────────────────────
 function filterItemsByCategory(category) {
@@ -288,21 +437,8 @@ function filterItemsByCategory(category) {
     if (show) anyVisible = true;
   });
   document.getElementById('noItemsMsg').classList.toggle('d-none', !category || anyVisible);
-  fillParentNameIfNeeded(category);
   checkEventCount();
 }
-
-document.getElementById('dobInput').addEventListener('change', function() {
-  const dob = this.value;
-  if (!dob) { currentCategory = ''; filterItemsByCategory(''); return; }
-  fetch(`/participants/api/category-from-dob?dob=${dob}`)
-    .then(r => r.json())
-    .then(d => {
-      currentCategory = d.category || '';
-      document.getElementById('categoryDisplay').value = currentCategory;
-      filterItemsByCategory(currentCategory);
-    });
-});
 
 // ── Event-count validation ────────────────────────────────────────────────────
 document.querySelectorAll('.event-check').forEach(cb => cb.addEventListener('change', checkEventCount));
@@ -313,84 +449,79 @@ function checkEventCount() {
   const groupCount = checked.filter(c => c.dataset.type === 'group').length;
   const total      = soloCount + groupCount;
 
-  const valid = (soloCount <= 3 && groupCount <= 1 && total <= 4) ||
-                (soloCount <= 2 && groupCount <= 2 && total <= 4);
-
-  // Can another solo / group still be legally added?
-  const canAddSolo = (soloCount < 3 && groupCount <= 1 && total < 4) ||
-                     (soloCount < 2 && groupCount <= 2 && total < 4);
+  const valid      = (soloCount <= 3 && groupCount <= 1 && total <= 4) ||
+                     (soloCount <= 2 && groupCount <= 2 && total <= 4);
+  const canAddSolo  = (soloCount < 3 && groupCount <= 1 && total < 4) ||
+                      (soloCount < 2 && groupCount <= 2 && total < 4);
   const canAddGroup = (soloCount <= 3 && groupCount < 1 && total < 4) ||
                       (soloCount <= 2 && groupCount < 2 && total < 4);
 
   eventCountValid = valid;
   document.getElementById('eventCountWarning').classList.toggle('d-none', valid);
 
-  // Limit message
   const limitEl = document.getElementById('eventLimitMsg');
   let limitMsg = '';
   if (valid && !canAddSolo && !canAddGroup) {
-    limitMsg = `<i class="bi bi-lock-fill me-2"></i>Maximum events reached (${soloCount} solo\u202f+\u202f${groupCount} group). Deselect an event to make a different choice.`;
-  } else if (valid && !canAddSolo && canAddGroup) {
+    limitMsg = `<i class="bi bi-lock-fill me-2"></i>Maximum events reached (${soloCount} solo\u202f+\u202f${groupCount} group).`;
+  } else if (valid && !canAddSolo) {
     limitMsg = '<i class="bi bi-info-circle-fill me-2"></i>Solo event limit reached. You may still add a group event.';
-  } else if (valid && canAddSolo && !canAddGroup) {
+  } else if (valid && !canAddGroup) {
     limitMsg = '<i class="bi bi-info-circle-fill me-2"></i>Group event limit reached. You may still add a solo event.';
   }
-  if (limitMsg) {
-    limitEl.innerHTML = limitMsg;
-    limitEl.classList.remove('d-none');
-  } else {
-    limitEl.classList.add('d-none');
-  }
+  limitEl.innerHTML = limitMsg;
+  limitEl.classList.toggle('d-none', !limitMsg);
 
-  // Disable unchecked items that can no longer be selected; re-enable those that can
   document.querySelectorAll('.event-check:not(:checked)').forEach(cb => {
-    if (SS_EXCLUDED_SENIOR_IDS.has(parseInt(cb.value))) return; // managed by SS logic
-    if (cb.closest('.category-section')?.style.display === 'none') return; // hidden section
+    if (SS_EXCLUDED_SENIOR_IDS.has(parseInt(cb.value))) return;
+    if (cb.closest('.category-section')?.style.display === 'none') return;
     const isSolo = cb.dataset.type === 'solo';
     const shouldDisable = (isSolo && !canAddSolo) || (!isSolo && !canAddGroup);
     cb.disabled = shouldDisable;
     cb.closest('.form-check').style.opacity = shouldDisable ? '0.45' : '';
   });
-
-  updateSubmitState();
 }
 
-document.querySelector('form').addEventListener('submit', function(e) {
-  if (!eventCountValid) {
-    e.preventDefault();
-    document.getElementById('eventCountWarning').classList.remove('d-none');
-    return;
-  }
-  if (!membershipVerified) {
-    e.preventDefault();
-    checkMembership();
-  }
-});
-
-// ── Initialise on page load ───────────────────────────────────────────────────
-new bootstrap.Tooltip(document.getElementById('emailField'));
-updateSubmitState();
-
+// ── Initialise on page load (re-display after server validation error) ────────
 (function init() {
-  const dob   = document.getElementById('dobInput').value;
   const lkcId = document.getElementById('lkcIdField').value.trim();
-  const email = document.getElementById('emailField').value.trim();
+  const email  = document.getElementById('emailField').value.trim();
+  const dob    = document.getElementById('dobInput').value;
 
-  if (dob) {
-    fetch(`/participants/api/category-from-dob?dob=${dob}`)
-      .then(r => r.json())
-      .then(d => {
-        currentCategory = d.category || '';
-        document.getElementById('categoryDisplay').value = currentCategory;
-        filterItemsByCategory(currentCategory);
-      });
-  } else {
-    filterItemsByCategory(null);
-    document.getElementById('noItemsMsg').classList.remove('d-none');
+  if (lkcId && lkcId !== 'LKC' && email) {
+    // Re-verify and restore to the correct step
+    fetch('/participants/api/verify-membership', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ lkc_id: lkcId.toUpperCase(), email: email })
+    })
+    .then(r => r.json())
+    .then(d => {
+      const ok = d.status === 'active' || d.status === 'error';
+      membershipVerified   = ok;
+      membershipHolderName = d.holder_name || '';
+      document.getElementById('nextToStep2').disabled = !ok;
+      const msg = d.status === 'active'
+        ? `<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>${escHtml(d.message)}</span>`
+        : `<span class="text-warning"><i class="bi bi-exclamation-triangle-fill me-1"></i>${escHtml(d.message)}</span>`;
+      document.getElementById('membershipStatus').innerHTML = msg;
+      document.getElementById('membershipCheckRow').style.display = '';
+
+      if (ok && dob) {
+        fetch(`/participants/api/category-from-dob?dob=${dob}`)
+          .then(r => r.json())
+          .then(d2 => {
+            currentCategory = d2.category || '';
+            document.getElementById('categoryDisplay').value = currentCategory;
+            filterItemsByCategory(currentCategory);
+            document.getElementById('categoryLabel').textContent = currentCategory;
+            goToStep(3);  // restore to events step on re-display
+          });
+      } else if (ok) {
+        goToStep(2);
+      }
+    })
+    .catch(() => {});
   }
-
-  // Auto-trigger check on form re-display (e.g. after eligibility warning)
-  if (lkcId && lkcId !== 'LKC' && email) checkMembership();
 })();
 </script>
 {% endblock %}

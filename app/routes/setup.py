@@ -1,10 +1,16 @@
 import os
+from types import SimpleNamespace
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
 from werkzeug.utils import secure_filename
 from app import db
 from app.models import EventConfig, Stage, CompetitionItem, Criteria, Entry
 
 setup_bp = Blueprint('setup', __name__)
+
+@setup_bp.before_request
+def require_admin():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('auth.login', next=request.path))
 
 
 @setup_bp.before_request
@@ -170,12 +176,35 @@ def items():
     return render_template('setup/items.html', items=all_items, categories=CATEGORIES)
 
 
+def _form_item_namespace():
+    """Build a SimpleNamespace from POST data to repopulate the form on error."""
+    return SimpleNamespace(
+        name=request.form.get('name', '').strip(),
+        category=request.form.get('category', ''),
+        item_type=request.form.get('item_type', 'solo'),
+        max_duration_mins=request.form.get('max_duration_mins') or None,
+        min_members=request.form.get('min_members') or None,
+        max_members=request.form.get('max_members') or None,
+        gender_restriction=request.form.get('gender_restriction') or None,
+        num_judges=int(request.form.get('num_judges', 3)),
+        criteria=[],
+    )
+
+
 @setup_bp.route('/items/add', methods=['GET', 'POST'])
 def add_item():
     if request.method == 'POST':
+        name = request.form['name'].strip()
+        category = request.form['category']
+
+        if CompetitionItem.query.filter_by(name=name, category=category).first():
+            flash(f'"{name}" already exists in the {category} category.', 'danger')
+            return render_template('setup/item_form.html',
+                                   item=_form_item_namespace(), categories=CATEGORIES)
+
         item = CompetitionItem(
-            name=request.form['name'].strip(),
-            category=request.form['category'],
+            name=name,
+            category=category,
             item_type=request.form['item_type'],
             max_duration_mins=int(request.form['max_duration_mins']) if request.form.get('max_duration_mins') else None,
             min_members=int(request.form['min_members']) if request.form.get('min_members') else None,
@@ -210,8 +239,18 @@ def add_item():
 def edit_item(item_id):
     item = CompetitionItem.query.get_or_404(item_id)
     if request.method == 'POST':
-        item.name = request.form['name'].strip()
-        item.category = request.form['category']
+        name = request.form['name'].strip()
+        category = request.form['category']
+
+        duplicate = CompetitionItem.query.filter_by(name=name, category=category).filter(
+            CompetitionItem.id != item_id
+        ).first()
+        if duplicate:
+            flash(f'"{name}" already exists in the {category} category.', 'danger')
+            return render_template('setup/item_form.html', item=item, categories=CATEGORIES)
+
+        item.name = name
+        item.category = category
         item.item_type = request.form['item_type']
         item.max_duration_mins = int(request.form['max_duration_mins']) if request.form.get('max_duration_mins') else None
         item.min_members = int(request.form['min_members']) if request.form.get('min_members') else None

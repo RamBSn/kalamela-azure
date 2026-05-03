@@ -22,6 +22,13 @@ def welcome():
     return render_template('welcome.html', cfg=cfg)
 
 
+@main_bp.route('/admin')
+def admin():
+    if session.get('admin_logged_in'):
+        return redirect(url_for('main.dashboard'))
+    return redirect(url_for('auth.login', next='/dashboard'))
+
+
 @main_bp.route('/dashboard')
 def dashboard():
     if not session.get('admin_logged_in'):
