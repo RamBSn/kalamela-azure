@@ -294,7 +294,8 @@ Key computed properties:
 - Full-screen dark gradient layout
 - Event logo (uploaded via Event Settings), event name, date, venue, tagline
 - Two large buttons: Register Individual / Register Group
-- Admin bar: Login / Dashboard + Logout (based on session)
+- Admin bar: Dashboard + Logout shown only when logged in; no Admin button shown to public
+- `/admin` route: redirects to login page (or dashboard if already logged in)
 
 **Dashboard** (`/dashboard`) — admin only:
 - Counts: participants, entries, scored, pending, stages, items
@@ -308,18 +309,28 @@ Key computed properties:
 
 ### 6.2 Participant Registration
 
-**Individual** (`/participants/register`):
-- Form label "Participant Name" (not "Full Name")
-- DOB: `type="date"`, enforced `min=1900-01-01`, `max=today` (HTML5 + server)
-- Phone: `07XXXXXXXXX` format, pre-filled with `07`, server-validated
-- LKC ID: `LKC###` or `LKC####`, pre-filled with `LKC`, server regex validated
-- Category auto-derived from DOB; stored in `currentCategory` JS variable (not DOM read) to avoid race conditions with async callbacks
-- **LKC membership check**: AJAX POST to `/participants/api/verify-membership` on LKC ID + email blur; blocks submit if inactive; shows renewal link; `status: 'error'` (API unavailable) is treated as a soft pass
-- **Parent/Guardian auto-fill**: if membership check returns `holder_name` and the participant's category is Kids, Sub-Junior, or Junior, the Parent/Guardian field is auto-filled from the API's holder name (only if the field is blank)
-- Hard-block on event count (no admin override on public page)
+**Individual** (`/participants/register`) — 3-step wizard:
+
+**Step 1 — Verify LKC Membership:**
+- LKC ID (`LKC###` or `LKC####`, pre-filled with `LKC`) + email address
+- "Verify" button triggers AJAX POST to `/participants/api/verify-membership`; also fires on email blur
+- Step 2 is hidden until membership passes; editing LKC ID or email re-hides Step 2
+- `status: 'error'` (API unavailable) is treated as a soft pass
+
+**Step 2 — Participant Details** (revealed after verification):
+- Participant Name, DOB, Gender, Phone, Parent/Guardian
+- DOB: `type="date"`, `min=1900-01-01`, `max=today`; resolves category via API
+- Phone: `07XXXXXXXXX` format, pre-filled with `07`
+- **Parent/Guardian auto-fill**: if membership returns `holder_name` and category is Kids/Sub-Junior/Junior, field is auto-filled (only if blank)
+- "Next: Choose Events" validates all required fields before advancing to Step 3
+
+**Step 3 — Enrol in Events** (revealed after DOB resolves a category):
+- Shows only events eligible for the resolved age category
+- Hard-block on event count: (≤ 3 solo + ≤ 1 group) or (≤ 2 solo + ≤ 2 group), total ≤ 4
 - Hard-block on eligibility (gender restrictions, category mismatch)
-- **GDPR consent checkbox** (required): links to LKC GDPR Policy; must be ticked before submit
-- Redirect to `register_individual` after success (not admin-only page)
+- **GDPR consent checkbox** (required): links to LKC GDPR Policy
+- Cancel button on all 3 steps returns to welcome page
+- On server validation error, form re-displays at Step 3 with all data restored
 
 **Group** (`/participants/groups/register`):
 - LKC ID lookup field pre-filled with `LKC`; cursor positioned after prefix on focus
@@ -327,16 +338,20 @@ Key computed properties:
 - Member eligibility checked via API *at the time of adding* (before form submit):
   1. Participant's category must match the selected event's category (or event is Common; Super Senior may enter Senior events unless a Super Senior variant exists)
   2. Participant must have an individual `Entry` for this group event
-- **Multiple participants per LKC ID**: if lookup returns >1 match, a candidate selection panel appears; if exactly 1 match, adds directly
+  3. Participant must not already be a member of another group for the same event — **one group per event per participant**
+- **Multiple participants per LKC ID**: if lookup returns >1 match, a candidate selection panel appears; already-added members and members in another group for this event are excluded from the list; if exactly 1 match, adds directly
+- **Ineligible candidates**: shown in candidate panel with issues listed; Select button is disabled — cannot be added
+- **Participants in another group for same event**: excluded entirely from lookup results; if all matches for an LKC ID are in other groups, a warning is shown instead
 - **Ineligible error message** includes list of group events the participant *can* be added to (cross-referenced via `_eligible_group_items_for()` helper)
 - **Not found message**: "No participant found with LKC ID '…'. Please use the Register Individual form before adding them to a group."
 - **Member list** shows chest number, LKC ID, full name, category, gender; ineligible members shown with amber warning badge and issue list
 - **Re-validation on event change**: when the selected event is changed after members have been added, all existing members are re-validated against the new event via `/api/participant-by-id`; ineligible members are flagged but not removed
-- Both eligibility checks enforced server-side on POST — **hard block, no admin override**
+- All eligibility checks enforced server-side on POST — **hard block, no admin override**
+- After successful registration, stays on group registration page (success flash shown); admin can immediately register another group
 - No GDPR section (GDPR consent is only on individual registration)
 
-**Group list** (`/participants/groups`) — public read, admin edit/delete:
-- Edit (pencil) button visible to admins; links to edit_group page
+**Group list** (`/participants/groups`) — admin only:
+- Edit (pencil) button links to edit_group page
 
 **Group edit** (`/participants/groups/<id>/edit`) — admin only:
 - Pre-populated with existing members; event is **read-only** (cannot be changed)
@@ -376,7 +391,8 @@ When `eligible: false`, the response includes:
 {
   "eligibility_issues": [
     "Category mismatch: participant is Kids, this event is for Junior.",
-    "Not individually registered for \"Group Song\"."
+    "Not individually registered for \"Group Song\".",
+    "Already a member of group \"Team A\" for \"Group Song\". A participant can only be in one group per event."
   ],
   "eligible_group_items": [
     {"id": 5, "name": "Group Song", "category": "Kids"}
@@ -384,6 +400,8 @@ When `eligible: false`, the response includes:
 }
 ```
 `eligible_group_items` lists group events the participant is individually registered for AND category-eligible to enter (computed by `_eligible_group_items_for()` helper).
+
+**One-group-per-event rule**: participants already in another `GroupEntry` for the same `item_id` are assigned `in_other_group: true` and filtered out of the returned candidates entirely. If all candidates for an LKC ID are in other groups, the API returns `{"found": false, "in_other_group": true}`.
 
 ---
 
@@ -534,12 +552,13 @@ New tables (e.g. `stage_plan_item`) are created automatically by `db.create_all(
 
 ```
 [P] /                          Welcome Page (logo, event info, registration buttons)
+[P] /admin                     Redirects to login (or dashboard if already logged in)
 [A] /dashboard                 Admin dashboard (stats)
 
 [P] Participants
-│   ├── [P]  /participants/              Individual list + search
-│   ├── [P]  /participants/groups        Group list + search
-│   ├── [P]  /participants/register      Register individual
+│   ├── [A]  /participants/              Individual list + search
+│   ├── [A]  /participants/groups        Group list
+│   ├── [P]  /participants/register      Register individual (3-step wizard)
 │   ├── [P]  /participants/groups/register  Register group
 │   ├── [A]  /participants/<id>/edit     Edit individual
 │   ├── [A]  /participants/groups/<id>/edit  Edit group
@@ -576,9 +595,11 @@ New tables (e.g. `stage_plan_item`) are created automatically by `db.create_all(
 
 ### Session
 - `session['admin_logged_in'] = True` on login
-- All admin blueprints use `@blueprint.before_request` guard
-- `login_required` decorator for individual routes
+- Logout redirects to welcome page (`/`)
+- All admin blueprints (`setup`, `schedule`, `planning`, `scores`, `results`, `scoresheets`, `data`, `certificates`) use `@blueprint.before_request` guard
+- Individual admin routes in `participants` blueprint use `@login_required` decorator
 - `is_admin` context variable injected into all templates via `inject_auth` context processor
+- Admin Login button not shown on public pages; admin accesses via `/admin`
 
 ### Azure Key Vault
 - `SECRET_KEY` and `ADMIN_PASSWORD` stored in Key Vault
@@ -608,6 +629,10 @@ New tables (e.g. `stage_plan_item`) are created automatically by `db.create_all(
 | Gender | Female-only events reject male members |
 | Category | Each member's category must match the event's category (unless Common); Super Senior may enter Senior events unless a Super Senior variant of the same event exists |
 | Individual registration | Each member must have an individual `Entry` for this group event |
+| One group per event | A participant can only be a member of one group per event; blocked at API lookup and POST |
+
+### Custom item management (admin)
+- Adding or editing a competition item checks for duplicate `name + category`; hard error shown, form data preserved
 
 ---
 

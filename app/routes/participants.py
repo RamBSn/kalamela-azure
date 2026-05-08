@@ -411,6 +411,15 @@ def register_group():
                 warnings.append(
                     f'{m.full_name} is not individually registered for "{item.name}".'
                 )
+            existing_group = GroupEntry.query.filter(
+                GroupEntry.item_id == item_id,
+                GroupEntry.members.any(Participant.id == m.id)
+            ).first()
+            if existing_group:
+                warnings.append(
+                    f'{m.full_name} is already in group "{existing_group.group_name}" '
+                    f'for "{item.name}". A participant can only be in one group per event.'
+                )
 
         if warnings:
             flash('Registration blocked — eligibility errors must be resolved.', 'danger')
@@ -436,7 +445,7 @@ def register_group():
         db.session.add(Entry(group_id=group.id, item_id=item_id))
         db.session.commit()
         flash(f'Group "{group.group_name}" registered (Chest #{group.chest_number}).', 'success')
-        return redirect(url_for('participants.list_groups'))
+        return redirect(url_for('participants.register_group'))
 
     return render_template(
         'participants/register_group.html',
@@ -489,6 +498,16 @@ def participant_by_lkc_id():
                     f'Not individually registered for "{item.name}". '
                     f'Register the participant for this event first.'
                 )
+            existing_group = GroupEntry.query.filter(
+                GroupEntry.item_id == item_id,
+                GroupEntry.members.any(Participant.id == p.id)
+            ).first()
+            if existing_group:
+                result['in_other_group'] = True
+                issues.append(
+                    f'Already a member of group "{existing_group.group_name}" '
+                    f'for "{item.name}". A participant can only be in one group per event.'
+                )
             if issues:
                 result['eligible'] = False
                 result['eligibility_issues'] = issues
@@ -496,6 +515,11 @@ def participant_by_lkc_id():
         return result
 
     candidates = [build_result(p) for p in participants]
+    # Remove participants already in another group for this event from the list entirely
+    candidates = [c for c in candidates if not c.get('in_other_group')]
+
+    if not candidates:
+        return jsonify({'found': False, 'in_other_group': True})
 
     if len(candidates) == 1:
         return jsonify(candidates[0])
@@ -553,6 +577,15 @@ def participant_by_db_id():
                     )
             if not Entry.query.filter_by(participant_id=p.id, item_id=item_id).first():
                 issues.append(f'Not individually registered for "{item.name}".')
+            existing_group = GroupEntry.query.filter(
+                GroupEntry.item_id == item_id,
+                GroupEntry.members.any(Participant.id == p.id)
+            ).first()
+            if existing_group:
+                issues.append(
+                    f'Already a member of group "{existing_group.group_name}" '
+                    f'for "{item.name}".'
+                )
             if issues:
                 result['eligible'] = False
                 result['eligibility_issues'] = issues

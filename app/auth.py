@@ -57,7 +57,7 @@ def login():
 def logout():
     session.pop('admin_logged_in', None)
     flash('Logged out.', 'info')
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.welcome'))
 
 
 @auth_bp.route('/change-password', methods=['GET', 'POST'])
