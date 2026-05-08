@@ -9,6 +9,7 @@ from email import encoders
 
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, send_file, current_app, session)
+from werkzeug.utils import secure_filename
 from app import db
 from app.models import EventConfig, CompetitionItem, Entry
 from app.routes.results import get_event_results, get_all_results, \
@@ -39,7 +40,6 @@ def index():
     items = (CompetitionItem.query.join(Entry).distinct()
              .order_by(CompetitionItem.category, CompetitionItem.name).all())
 
-    # Top-3 ranked entries per item (for social cert buttons)
     item_ranked = {}
     for item in items:
         ranked = get_event_results(item.id)
@@ -50,8 +50,11 @@ def index():
                            item_ranked=item_ranked, smtp_ok=smtp_ok)
 
 
+# ── PDF Certificate Template ─────────────────────────────────────────────────
+
 @certificates_bp.route('/template', methods=['GET', 'POST'])
 def template_setup():
+    from app.pdf.fonts import get_font_choices
     cfg = EventConfig.query.first()
     if not cfg:
         cfg = EventConfig()
@@ -59,19 +62,18 @@ def template_setup():
         db.session.commit()
 
     if request.method == 'POST':
-        from werkzeug.utils import secure_filename
-        cfg.cert_title_text      = request.form.get('cert_title_text', 'Certificate of Achievement').strip()
-        cfg.cert_font_colour     = request.form.get('cert_font_colour',     '#1a1a2e').strip()
-        cfg.cert_heading_colour  = request.form.get('cert_heading_colour',  '#8b6914').strip()
-        cfg.cert_title_colour    = request.form.get('cert_title_colour',    '#1a1a2e').strip()
-        cfg.cert_name_colour     = request.form.get('cert_name_colour',     '#8b6914').strip()
+        cfg.cert_title_text     = request.form.get('cert_title_text', 'Certificate of Achievement').strip()
+        cfg.cert_font_colour    = request.form.get('cert_font_colour',    '#1a1a2e').strip()
+        cfg.cert_heading_colour = request.form.get('cert_heading_colour', '#8b6914').strip()
+        cfg.cert_title_colour   = request.form.get('cert_title_colour',   '#1a1a2e').strip()
+        cfg.cert_name_colour    = request.form.get('cert_name_colour',    '#8b6914').strip()
+        cfg.cert_font           = request.form.get('cert_font', 'Times-Roman') or 'Times-Roman'
 
         if 'bg_image' in request.files:
             file = request.files['bg_image']
             if file and file.filename and allowed_file(file.filename):
                 filename = secure_filename('cert_background.' + file.filename.rsplit('.', 1)[1].lower())
-                upload_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-                file.save(upload_path)
+                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
                 cfg.cert_bg_image = filename
                 flash('Background image uploaded.', 'success')
 
@@ -82,7 +84,46 @@ def template_setup():
         flash('Certificate template saved.', 'success')
         return redirect(url_for('certificates.template_setup'))
 
-    return render_template('certificates/template.html', cfg=cfg)
+    font_choices = get_font_choices()
+    return render_template('certificates/template.html', cfg=cfg, font_choices=font_choices)
+
+
+# ── Social Certificate Template ───────────────────────────────────────────────
+
+@certificates_bp.route('/social-template', methods=['GET', 'POST'])
+def social_template():
+    from app.pdf.fonts import get_font_choices
+    cfg = EventConfig.query.first()
+    if not cfg:
+        cfg = EventConfig()
+        db.session.add(cfg)
+        db.session.commit()
+
+    if request.method == 'POST':
+        cfg.social_cert_font        = request.form.get('social_cert_font', '') or None
+        cfg.social_cert_pos_colour  = request.form.get('social_cert_pos_colour',  '#d4af37').strip()
+        cfg.social_cert_name_colour = request.form.get('social_cert_name_colour', '#ffffff').strip()
+        cfg.social_cert_item_colour = request.form.get('social_cert_item_colour', '#ffffff').strip()
+        cfg.social_cert_evt_colour  = request.form.get('social_cert_evt_colour',  '#d4af37').strip()
+        cfg.social_cert_overlay     = max(0, min(255, int(request.form.get('social_cert_overlay') or 170)))
+
+        if 'social_bg_image' in request.files:
+            file = request.files['social_bg_image']
+            if file and file.filename and allowed_file(file.filename):
+                filename = secure_filename('social_background.' + file.filename.rsplit('.', 1)[1].lower())
+                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                cfg.social_cert_bg_image = filename
+                flash('Social background image uploaded.', 'success')
+
+        if request.form.get('remove_social_bg'):
+            cfg.social_cert_bg_image = None
+
+        db.session.commit()
+        flash('Social certificate template saved.', 'success')
+        return redirect(url_for('certificates.social_template'))
+
+    font_choices = get_font_choices()
+    return render_template('certificates/social_template.html', cfg=cfg, font_choices=font_choices)
 
 
 def _make_cert(cfg, name, item_name, category, position_label):
@@ -104,17 +145,20 @@ def _make_cert(cfg, name, item_name, category, position_label):
         heading_colour=cfg.cert_heading_colour if cfg else '#8b6914',
         title_colour=cfg.cert_title_colour if cfg else '#1a1a2e',
         name_colour=cfg.cert_name_colour if cfg else '#8b6914',
+        cert_font=cfg.cert_font if cfg else None,
     )
 
 
 def _make_social_cert(cfg, entry, position):
-    """Generate social PNG bytes for an entry."""
     from app.pdf.social_certificate import generate_social_certificate
     logo_path = None
     if cfg and cfg.welcome_logo:
         logo_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cfg.welcome_logo)
+    # Use dedicated social background if set, else fall back to PDF cert background
     bg_path = None
-    if cfg and cfg.cert_bg_image:
+    if cfg and cfg.social_cert_bg_image:
+        bg_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cfg.social_cert_bg_image)
+    elif cfg and cfg.cert_bg_image:
         bg_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cfg.cert_bg_image)
 
     return generate_social_certificate(
@@ -125,14 +169,19 @@ def _make_social_cert(cfg, entry, position):
         position=position,
         logo_path=logo_path,
         bg_image_path=bg_path,
+        font_value=cfg.social_cert_font if cfg else None,
+        pos_colour=cfg.social_cert_pos_colour  if cfg else '#d4af37',
+        name_colour=cfg.social_cert_name_colour if cfg else '#ffffff',
+        item_colour=cfg.social_cert_item_colour if cfg else '#ffffff',
+        evt_colour=cfg.social_cert_evt_colour   if cfg else '#d4af37',
+        overlay_opacity=cfg.social_cert_overlay if cfg else 170,
     )
 
 
 @certificates_bp.route('/event/<int:item_id>')
 def event_certificates(item_id):
-    """Download all PDF certificates for an event as a ZIP."""
-    item = CompetitionItem.query.get_or_404(item_id)
-    cfg  = EventConfig.query.first()
+    item   = CompetitionItem.query.get_or_404(item_id)
+    cfg    = EventConfig.query.first()
     ranked = get_event_results(item_id)
 
     if not ranked:
@@ -151,12 +200,8 @@ def event_certificates(item_id):
             zf.writestr(safe, pdf)
 
     zip_buf.seek(0)
-    return send_file(
-        zip_buf,
-        mimetype='application/zip',
-        as_attachment=True,
-        download_name=f'certificates_{item.name}.zip'.replace(' ', '_'),
-    )
+    return send_file(zip_buf, mimetype='application/zip', as_attachment=True,
+                     download_name=f'certificates_{item.name}.zip'.replace(' ', '_'))
 
 
 @certificates_bp.route('/single/<int:entry_id>/<int:position>')
@@ -166,44 +211,31 @@ def single_certificate(entry_id, position):
     item  = entry.competition_item
     label = POSITION_LABELS.get(position, f'{position}th')
 
-    pdf = _make_cert(cfg, entry.display_name, item.name, item.category, label)
+    pdf      = _make_cert(cfg, entry.display_name, item.name, item.category, label)
     filename = f'certificate_{entry.display_name}_{item.name}.pdf'.replace(' ', '_')
-    return send_file(
-        io.BytesIO(pdf),
-        mimetype='application/pdf',
-        as_attachment=False,
-        download_name=filename,
-    )
+    return send_file(io.BytesIO(pdf), mimetype='application/pdf',
+                     as_attachment=False, download_name=filename)
 
 
-# ── Social Certificate (PNG) ────────────────────────────────────────────────
+# ── Social Certificate (PNG) ──────────────────────────────────────────────────
 
 @certificates_bp.route('/social/<int:entry_id>/<int:position>')
 def social_certificate(entry_id, position):
-    """Download social PNG certificate for one entry."""
     entry = Entry.query.get_or_404(entry_id)
     cfg   = EventConfig.query.first()
-
-    png = _make_social_cert(cfg, entry, position)
-    name = entry.display_name.replace(' ', '_')
-    item = entry.competition_item.name.replace(' ', '_')
-    filename = f'social_{name}_{item}_{position}.png'
-    return send_file(
-        io.BytesIO(png),
-        mimetype='image/png',
-        as_attachment=True,
-        download_name=filename,
-    )
+    png   = _make_social_cert(cfg, entry, position)
+    name  = entry.display_name.replace(' ', '_')
+    item  = entry.competition_item.name.replace(' ', '_')
+    return send_file(io.BytesIO(png), mimetype='image/png', as_attachment=True,
+                     download_name=f'social_{name}_{item}_{position}.png')
 
 
 @certificates_bp.route('/social/email/<int:entry_id>/<int:position>', methods=['POST'])
 def email_social_certificate(entry_id, position):
-    """Email social PNG certificate to the participant's registered email."""
-    entry = Entry.query.get_or_404(entry_id)
-    cfg   = EventConfig.query.first()
-
-    # Only individual entries have a personal email
+    entry     = Entry.query.get_or_404(entry_id)
+    cfg       = EventConfig.query.first()
     recipient = entry.participant.email if entry.participant else None
+
     if not recipient:
         flash('No email address on record for this participant.', 'warning')
         return redirect(url_for('certificates.index'))
@@ -230,7 +262,7 @@ def _send_social_email(cfg, recipient, entry, position, png_bytes):
     from_addr      = cfg.smtp_from_email
     subject        = f'Your {position_label} certificate — {item_name} | {event_name}'
 
-    msg = MIMEMultipart()
+    msg            = MIMEMultipart()
     msg['From']    = f'{from_name} <{from_addr}>'
     msg['To']      = recipient
     msg['Subject'] = subject
@@ -245,7 +277,6 @@ def _send_social_email(cfg, recipient, entry, position, png_bytes):
     )
     msg.attach(MIMEText(body, 'plain'))
 
-    # Attach the PNG
     part = MIMEBase('image', 'png')
     part.set_payload(png_bytes)
     encoders.encode_base64(part)
@@ -269,8 +300,7 @@ def _send_social_email(cfg, recipient, entry, position, png_bytes):
 
 @certificates_bp.route('/awards')
 def award_certificates():
-    """Generate certificates for all special award winners."""
-    cfg        = EventConfig.query.first()
+    cfg         = EventConfig.query.first()
     all_results = get_all_results()
     points_map  = compute_individual_points(all_results)
     champions   = compute_individual_champions(points_map)
@@ -298,9 +328,5 @@ def award_certificates():
             zf.writestr(safe, pdf)
 
     zip_buf.seek(0)
-    return send_file(
-        zip_buf,
-        mimetype='application/zip',
-        as_attachment=True,
-        download_name='award_certificates.zip',
-    )
+    return send_file(zip_buf, mimetype='application/zip', as_attachment=True,
+                     download_name='award_certificates.zip')

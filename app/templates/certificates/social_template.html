@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% block title %}Social Certificate Template{% endblock %}
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+  <h2><i class="bi bi-phone me-2"></i>Social Certificate Template</h2>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('certificates.template_setup') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-file-earmark-pdf me-1"></i>PDF Template
+    </a>
+    <a href="{{ url_for('certificates.index') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
+</div>
+
+<div class="alert alert-info small py-2">
+  <i class="bi bi-info-circle me-1"></i>
+  This generates a <strong>1080 × 1920 px portrait PNG</strong> suitable for Instagram / WhatsApp Stories and Status.
+</div>
+
+<div class="row g-4">
+  {# ── Settings panel ─────────────────────────────────────────────────── #}
+  <div class="col-md-5">
+    <div class="card p-4">
+      <form method="post" enctype="multipart/form-data" id="socialForm">
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Background Image <span class="text-muted small">(portrait, 1080×1920 ideal)</span></label>
+          {% if cfg and cfg.social_cert_bg_image %}
+          <div class="mb-2 d-flex align-items-center gap-3">
+            <img src="{{ url_for('static', filename='uploads/' + cfg.social_cert_bg_image) }}"
+                 alt="" style="max-height:80px;max-width:100px;object-fit:cover;border-radius:4px">
+            <label class="form-check-label text-danger small">
+              <input type="checkbox" name="remove_social_bg" value="1" class="form-check-input me-1">
+              Remove image
+            </label>
+          </div>
+          {% elif cfg and cfg.cert_bg_image %}
+          <div class="alert alert-secondary py-2 small mb-2">
+            No portrait background set — currently using PDF cert background as fallback.
+          </div>
+          {% endif %}
+          <input type="file" name="social_bg_image" class="form-control" accept=".png,.jpg,.jpeg">
+          <div class="form-text">PNG or JPG. Portrait orientation strongly recommended.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Font</label>
+          <select name="social_cert_font" class="form-select" id="socialFont" onchange="updatePreview()">
+            <option value="">System Default (Arial / DejaVu Sans)</option>
+            {% set cur_font = cfg.social_cert_font if cfg and cfg.social_cert_font else '' %}
+            {% for f in font_choices %}
+            <option value="{{ f.value }}"
+                    data-css="{{ f.css }}"
+                    {{ 'selected' if f.value == cur_font }}>
+              {{ f.label }}{% if f.bold %} ✓{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">✓ = bold variant available. Preview is approximate.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Text Colours</label>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-text d-block mb-1">Position label</label>
+              <input type="color" name="social_cert_pos_colour" id="colPos"
+                     class="form-control form-control-color w-100"
+                     value="{{ cfg.social_cert_pos_colour if cfg and cfg.social_cert_pos_colour else '#d4af37' }}"
+                     oninput="updatePreview()">
+            </div>
+            <div class="col-6">
+              <label class="form-text d-block mb-1">Participant name</label>
+              <input type="color" name="social_cert_name_colour" id="colName"
+                     class="form-control form-control-color w-100"
+                     value="{{ cfg.social_cert_name_colour if cfg and cfg.social_cert_name_colour else '#ffffff' }}"
+                     oninput="updatePreview()">
+            </div>
+            <div class="col-6">
+              <label class="form-text d-block mb-1">Item name</label>
+              <input type="color" name="social_cert_item_colour" id="colItem"
+                     class="form-control form-control-color w-100"
+                     value="{{ cfg.social_cert_item_colour if cfg and cfg.social_cert_item_colour else '#ffffff' }}"
+                     oninput="updatePreview()">
+            </div>
+            <div class="col-6">
+              <label class="form-text d-block mb-1">"at Event" text</label>
+              <input type="color" name="social_cert_evt_colour" id="colEvt"
+                     class="form-control form-control-color w-100"
+                     value="{{ cfg.social_cert_evt_colour if cfg and cfg.social_cert_evt_colour else '#d4af37' }}"
+                     oninput="updatePreview()">
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">
+            Background Overlay Darkness
+            <span id="overlayVal" class="text-muted small fw-normal ms-1"></span>
+          </label>
+          <input type="range" name="social_cert_overlay" id="overlaySlider"
+                 class="form-range" min="0" max="230" step="10"
+                 value="{{ cfg.social_cert_overlay if cfg and cfg.social_cert_overlay is not none else 170 }}"
+                 oninput="updatePreview()">
+          <div class="form-text">Higher = darker overlay, improves text readability over bright images.</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Social Template</button>
+      </form>
+    </div>
+  </div>
+
+  {# ── Live Preview ────────────────────────────────────────────────────── #}
+  <div class="col-md-7">
+    <div class="card p-4 bg-light">
+      <h6 class="fw-semibold mb-1">Preview <span class="text-muted small fw-normal">(scaled — colours & font are live)</span></h6>
+      <p class="text-muted small mb-3">Background image only updates after saving.</p>
+
+      {# Phone/story shaped container — 9:16 aspect ratio #}
+      <div style="max-width:280px;margin:0 auto;">
+        <div id="socialPreview" style="
+            position:relative;
+            width:100%;
+            padding-top:177.78%;  /* 9:16 */
+            border-radius:16px;
+            overflow:hidden;
+            border:2px solid #ccc;
+            {% if cfg and cfg.social_cert_bg_image %}
+              background-image:url('{{ url_for('static', filename='uploads/' + cfg.social_cert_bg_image) }}');
+              background-size:cover;background-position:center;
+            {% elif cfg and cfg.cert_bg_image %}
+              background-image:url('{{ url_for('static', filename='uploads/' + cfg.cert_bg_image) }}');
+              background-size:cover;background-position:center;
+            {% else %}
+              background-color:#1a1a2e;
+            {% endif %}">
+          {# Overlay #}
+          <div id="previewOverlay" style="
+              position:absolute;inset:0;
+              background:rgba(0,0,0,0.67);
+              border-radius:16px;
+              display:flex;flex-direction:column;
+              align-items:center;justify-content:flex-start;
+              padding:5% 4%;
+              text-align:center;
+              gap:0;">
+
+            {# Logo #}
+            <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
+                 alt="LKC" style="height:11%;width:auto;object-fit:contain;margin-bottom:3%">
+
+            {# Gold divider #}
+            <div id="prevDivider1" style="width:75%;height:3px;margin-bottom:4%;"></div>
+
+            {# Position #}
+            <div id="prevPos" style="font-size:clamp(1.1rem,4.5vw,1.4rem);font-weight:700;margin-bottom:3%;">
+              Winner
+            </div>
+
+            {# Item name #}
+            <div id="prevItem" style="font-size:clamp(0.8rem,3vw,1rem);font-weight:500;margin-bottom:1%;">
+              Folk Dance
+            </div>
+            <div style="font-size:0.7rem;color:#d0d0d0;margin-bottom:4%;">Junior</div>
+
+            {# Thin divider #}
+            <div style="width:55%;height:1px;background:rgba(255,255,255,0.3);margin-bottom:3%;"></div>
+
+            <div style="font-size:0.65rem;color:#d0d0d0;margin-bottom:2%;">This certifies that</div>
+
+            {# Name #}
+            <div id="prevName" style="font-size:clamp(1rem,4vw,1.3rem);font-weight:700;margin-bottom:4%;">
+              Participant Name
+            </div>
+
+            {# At event #}
+            <div id="prevEvt" style="font-size:0.75rem;font-weight:500;">
+              at {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela' }}
+            </div>
+
+            {# Bottom bar placeholder #}
+            <div id="prevFooter" style="
+                position:absolute;bottom:0;left:0;right:0;
+                padding:2% 4%;font-size:0.6rem;font-weight:600;color:#1a1a2e;
+                text-align:center;">
+              Leicester Kerala Community
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePreview() {
+  const pos     = document.getElementById('colPos').value;
+  const name    = document.getElementById('colName').value;
+  const item    = document.getElementById('colItem').value;
+  const evt     = document.getElementById('colEvt').value;
+  const overlay = parseInt(document.getElementById('overlaySlider').value);
+  const alpha   = (overlay / 255).toFixed(2);
+  const fontSel = document.getElementById('socialFont');
+  const css     = fontSel.options[fontSel.selectedIndex]?.dataset.css || 'sans-serif';
+
+  document.getElementById('overlayVal').textContent = `(${overlay})`;
+
+  document.getElementById('previewOverlay').style.background = `rgba(0,0,0,${alpha})`;
+  document.getElementById('previewOverlay').style.fontFamily  = css;
+
+  document.getElementById('prevPos').style.color  = pos;
+  document.getElementById('prevItem').style.color = item;
+  document.getElementById('prevName').style.color = name;
+  document.getElementById('prevEvt').style.color  = evt;
+
+  // Reuse position colour for divider and footer bar
+  document.getElementById('prevDivider1').style.background = pos;
+  document.getElementById('prevFooter').style.background   = pos;
+}
+updatePreview();
+</script>
+{% endblock %}

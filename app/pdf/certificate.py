@@ -1,6 +1,7 @@
 """
 Certificate PDF generator.
-Supports a background image and customisable text layout from EventConfig.
+Supports a background image, configurable colours, and a configurable font
+(ReportLab built-in names or a TTF file path via cert_font).
 """
 import io
 import os
@@ -9,10 +10,7 @@ _LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'sta
 
 
 def _dimmed_logo_reader(opacity: float = 0.07):
-    """Return a ReportLab ImageReader for the LKC logo at the given opacity (0–1).
-    Uses Pillow to bake the alpha so drawImage renders it as a watermark.
-    Returns None if the logo file or Pillow is unavailable.
-    """
+    """Return a ReportLab ImageReader for the LKC logo at the given opacity (0–1)."""
     if not os.path.exists(_LOGO_PATH):
         return None
     try:
@@ -44,6 +42,7 @@ def generate_certificate(
     heading_colour: str = '#8b6914',
     title_colour: str = '#1a1a2e',
     name_colour: str = '#8b6914',
+    cert_font: str = None,
 ) -> bytes:
     try:
         from reportlab.lib.pagesizes import A4, landscape
@@ -52,6 +51,10 @@ def generate_certificate(
         from reportlab.lib.colors import HexColor
     except ImportError:
         raise RuntimeError('reportlab is required')
+
+    # ── Font setup ────────────────────────────────────────────────────────────
+    from app.pdf.fonts import resolve_pdf_fonts
+    base_font, bold_font = resolve_pdf_fonts(cert_font)
 
     page_w, page_h = landscape(A4)
     buf = io.BytesIO()
@@ -70,27 +73,24 @@ def generate_certificate(
         c.setLineWidth(1)
         c.rect(18 * mm, 18 * mm, page_w - 36 * mm, page_h - 36 * mm, fill=0, stroke=1)
 
-    # ── Watermark — dimmed logo centred on the full page (default bg only) ───
-    # Skipped when a custom background image is used — it would clash with it.
+    # ── Watermark ─────────────────────────────────────────────────────────────
     if not (bg_image_path and os.path.exists(bg_image_path)):
         wm = _dimmed_logo_reader(opacity=0.07)
         if wm:
             wm_size = 160 * mm
-            c.drawImage(wm,
-                        (page_w - wm_size) / 2, (page_h - wm_size) / 2,
+            c.drawImage(wm, (page_w - wm_size) / 2, (page_h - wm_size) / 2,
                         width=wm_size, height=wm_size,
                         preserveAspectRatio=True, mask='auto')
 
     def _hex(val, fallback):
         return HexColor(val if val and val.startswith('#') else fallback)
 
-    text_colour    = _hex(font_colour,    '#1a1a2e')
-    heading_col    = _hex(heading_colour, '#8b6914')
-    title_col      = _hex(title_colour,   '#1a1a2e')
-    name_col       = _hex(name_colour,    '#8b6914')
+    text_colour = _hex(font_colour,    '#1a1a2e')
+    heading_col = _hex(heading_colour, '#8b6914')
+    title_col   = _hex(title_colour,   '#1a1a2e')
+    name_col    = _hex(name_colour,    '#8b6914')
 
-    # ── Logo — top centre, inside the gold border frame ──────────────────────
-    # Inner border top edge is at page_h - 18mm; logo sits 6mm below it.
+    # ── Logo ──────────────────────────────────────────────────────────────────
     if os.path.exists(_LOGO_PATH):
         logo_h = 24 * mm
         c.drawImage(_LOGO_PATH,
@@ -98,13 +98,13 @@ def generate_certificate(
                     width=logo_h, height=logo_h,
                     preserveAspectRatio=True, mask='auto')
 
-    # ── Event name — main heading in Times New Roman ──────────────────────────
+    # ── Event name ────────────────────────────────────────────────────────────
     c.setFillColor(heading_col)
-    c.setFont('Times-Bold', 20)
+    c.setFont(bold_font, 20)
     c.drawCentredString(page_w / 2, page_h - 60 * mm, event_name)
 
     # ── Certificate title ─────────────────────────────────────────────────────
-    c.setFont('Times-Bold', 30)
+    c.setFont(bold_font, 30)
     c.setFillColor(title_col)
     c.drawCentredString(page_w / 2, page_h - 76 * mm, title_text)
 
@@ -115,23 +115,23 @@ def generate_certificate(
 
     # ── Body text ─────────────────────────────────────────────────────────────
     body_y = page_h - 102 * mm
-    c.setFont('Times-Roman', 13)
+    c.setFont(base_font, 13)
     c.setFillColor(text_colour)
     c.drawCentredString(page_w / 2, body_y, 'This is to certify that')
 
-    c.setFont('Times-Bold', 22)
+    c.setFont(bold_font, 22)
     c.setFillColor(name_col)
     c.drawCentredString(page_w / 2, body_y - 14 * mm, participant_name)
 
-    c.setFont('Times-Roman', 13)
+    c.setFont(base_font, 13)
     c.setFillColor(text_colour)
     c.drawCentredString(page_w / 2, body_y - 26 * mm, f'has achieved  {position}  in')
 
-    c.setFont('Times-Bold', 16)
+    c.setFont(bold_font, 16)
     c.setFillColor(title_col)
     c.drawCentredString(page_w / 2, body_y - 38 * mm, f'{item_name}  —  {category}')
 
-    c.setFont('Times-Roman', 12)
+    c.setFont(base_font, 12)
     c.setFillColor(text_colour)
     c.drawCentredString(page_w / 2, body_y - 52 * mm,
                         f'at  {event_name}  on  {event_date}')

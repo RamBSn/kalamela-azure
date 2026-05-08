@@ -1,36 +1,59 @@
 {% extends 'base.html' %}
-{% block title %}Certificate Template{% endblock %}
+{% block title %}PDF Certificate Template{% endblock %}
 {% block content %}
 <div class="page-header d-flex justify-content-between align-items-center">
-  <h2><i class="bi bi-palette me-2"></i>Certificate Template Setup</h2>
-  <a href="{{ url_for('certificates.index') }}" class="btn btn-outline-secondary">
-    <i class="bi bi-arrow-left me-1"></i>Back
-  </a>
+  <h2><i class="bi bi-palette me-2"></i>PDF Certificate Template</h2>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('certificates.social_template') }}" class="btn btn-outline-info">
+      <i class="bi bi-phone me-1"></i>Social Template
+    </a>
+    <a href="{{ url_for('certificates.index') }}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+  </div>
 </div>
 
-<div class="row">
-  <div class="col-md-6">
+<div class="row g-4">
+  <div class="col-md-5">
     <div class="card p-4">
       <form method="post" enctype="multipart/form-data">
+
         <div class="mb-3">
           <label class="form-label fw-semibold">Background / Banner Image</label>
           {% if cfg and cfg.cert_bg_image %}
-          <div class="mb-2">
-            <span class="badge bg-success me-2">Current: {{ cfg.cert_bg_image }}</span>
-            <label>
-              <input type="checkbox" name="remove_bg" value="1"> Remove image
+          <div class="mb-2 d-flex align-items-center gap-3">
+            <img src="{{ url_for('static', filename='uploads/' + cfg.cert_bg_image) }}"
+                 alt="" style="max-height:56px;max-width:160px;object-fit:cover;border-radius:4px">
+            <label class="form-check-label text-danger small">
+              <input type="checkbox" name="remove_bg" value="1" class="form-check-input me-1">
+              Remove image
             </label>
           </div>
           {% endif %}
           <input type="file" name="bg_image" class="form-control" accept=".png,.jpg,.jpeg">
-          <div class="form-text">PNG or JPG. Will be stretched to A4 landscape. Ideal size: 297×210mm.</div>
+          <div class="form-text">PNG or JPG — A4 landscape. Also used as social cert fallback background.</div>
         </div>
 
         <div class="mb-3">
           <label class="form-label fw-semibold">Certificate Title</label>
-          <input type="text" name="cert_title_text" class="form-control"
-                 value="{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}">
-          <div class="form-text">e.g. "Certificate of Achievement", "Certificate of Merit"</div>
+          <input type="text" name="cert_title_text" class="form-control" id="previewTitle"
+                 value="{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}"
+                 oninput="updatePreview()">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Font</label>
+          <select name="cert_font" class="form-select" id="certFont" onchange="updatePreview()">
+            {% set cur_font = cfg.cert_font if cfg and cfg.cert_font else 'Times-Roman' %}
+            {% for f in font_choices %}
+            <option value="{{ f.value }}"
+                    data-css="{{ f.css }}"
+                    {{ 'selected' if f.value == cur_font }}>
+              {{ f.label }}{% if f.bold %} ✓{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">✓ = bold variant available. Preview is approximate — PDF will use the actual font.</div>
         </div>
 
         <div class="mb-3">
@@ -38,46 +61,45 @@
           <div class="row g-2">
             <div class="col-6">
               <label class="form-text d-block mb-1">Event name heading</label>
-              <input type="color" name="cert_heading_colour" class="form-control form-control-color w-100"
+              <input type="color" name="cert_heading_colour" id="colHeading"
+                     class="form-control form-control-color w-100"
                      value="{{ cfg.cert_heading_colour if cfg and cfg.cert_heading_colour else '#8b6914' }}"
-                     title="Event name heading colour">
+                     oninput="updatePreview()">
             </div>
             <div class="col-6">
               <label class="form-text d-block mb-1">Certificate title</label>
-              <input type="color" name="cert_title_colour" class="form-control form-control-color w-100"
+              <input type="color" name="cert_title_colour" id="colTitle"
+                     class="form-control form-control-color w-100"
                      value="{{ cfg.cert_title_colour if cfg and cfg.cert_title_colour else '#1a1a2e' }}"
-                     title="Certificate title colour">
+                     oninput="updatePreview()">
             </div>
             <div class="col-6">
               <label class="form-text d-block mb-1">Participant name</label>
-              <input type="color" name="cert_name_colour" class="form-control form-control-color w-100"
+              <input type="color" name="cert_name_colour" id="colName"
+                     class="form-control form-control-color w-100"
                      value="{{ cfg.cert_name_colour if cfg and cfg.cert_name_colour else '#8b6914' }}"
-                     title="Participant name colour">
+                     oninput="updatePreview()">
             </div>
             <div class="col-6">
               <label class="form-text d-block mb-1">Body text</label>
-              <input type="color" name="cert_font_colour" class="form-control form-control-color w-100"
+              <input type="color" name="cert_font_colour" id="colBody"
+                     class="form-control form-control-color w-100"
                      value="{{ cfg.cert_font_colour if cfg and cfg.cert_font_colour else '#1a1a2e' }}"
-                     title="Body text colour">
+                     oninput="updatePreview()">
             </div>
           </div>
         </div>
 
-        <div class="alert alert-info small">
-          <strong>Certificate fields auto-populated:</strong><br>
-          Event name, Participant / Group name, Competition item, Age category, Position, Date.
-        </div>
-
-        <button type="submit" class="btn btn-primary">Save Template</button>
+        <button type="submit" class="btn btn-primary">Save PDF Template</button>
       </form>
     </div>
   </div>
 
-  <div class="col-md-6">
+  <div class="col-md-7">
     <div class="card p-4 bg-light">
-      <h6 class="fw-semibold mb-3">Certificate Preview</h6>
-      <div class="border rounded p-3 text-center" style="
-          font-family:serif;position:relative;overflow:hidden;
+      <h6 class="fw-semibold mb-3">Preview <span class="text-muted small fw-normal">(approximate)</span></h6>
+      <div id="certPreview" class="border rounded p-3 text-center" style="
+          position:relative;overflow:hidden;
           {% if cfg and cfg.cert_bg_image %}
             background-image:url('{{ url_for('static', filename='uploads/' + cfg.cert_bg_image) }}');
             background-size:cover;background-position:center;
@@ -85,30 +107,25 @@
             background-color:#f5f0e8;
           {% endif %}">
         {% if not (cfg and cfg.cert_bg_image) %}
-        {# Watermark — only shown when no background image, matching PDF behaviour #}
         <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
              alt="" aria-hidden="true"
              style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
                     width:55%;opacity:0.07;pointer-events:none;z-index:0;">
         {% endif %}
-        {# Content #}
-        <div style="position:relative;z-index:1;{% if cfg and cfg.cert_bg_image %}background:rgba(255,255,255,0.12);border-radius:6px;padding:0.5rem;{% endif %}">
+        <div id="previewContent" style="position:relative;z-index:1;
+            {% if cfg and cfg.cert_bg_image %}background:rgba(255,255,255,0.12);border-radius:6px;padding:0.5rem;{% endif %}">
           <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
                alt="LKC" style="height:48px;width:auto;object-fit:contain;margin-bottom:6px">
-          {% set heading_col = cfg.cert_heading_colour if cfg and cfg.cert_heading_colour else '#8b6914' %}
-          {% set title_col   = cfg.cert_title_colour   if cfg and cfg.cert_title_colour   else '#1a1a2e' %}
-          {% set name_col    = cfg.cert_name_colour    if cfg and cfg.cert_name_colour    else '#8b6914' %}
-          {% set body_col    = cfg.cert_font_colour    if cfg and cfg.cert_font_colour    else '#1a1a2e' %}
-          <div class="fw-bold mb-2" style="color:{{ heading_col }};font-size:1rem;">
+          <div id="pHeading" class="fw-bold mb-2" style="font-size:1rem;">
             {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela' }}
           </div>
-          <h4 class="fw-bold" style="color:{{ title_col }};">{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}</h4>
-          <hr style="border-color:{{ heading_col }};border-width:2px;">
-          <p class="mb-1" style="color:{{ body_col }};">This is to certify that</p>
-          <h5 class="fw-bold" style="color:{{ name_col }};">Participant Name</h5>
-          <p class="mb-1" style="color:{{ body_col }};">has achieved <strong>1st Prize</strong> in</p>
-          <h6 class="fw-bold" style="color:{{ title_col }};">Folk Dance — Junior</h6>
-          <p class="small" style="color:{{ body_col }};">
+          <h4 id="pTitle" class="fw-bold">{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}</h4>
+          <hr id="pHr" style="border-width:2px;">
+          <p id="pBody1" class="mb-1">This is to certify that</p>
+          <h5 id="pName" class="fw-bold">Participant Name</h5>
+          <p id="pBody2" class="mb-1">has achieved <strong>1st Prize</strong> in</p>
+          <h6 id="pItem" class="fw-bold">Folk Dance — Junior</h6>
+          <p id="pBody3" class="small">
             at {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela' }}
             on {{ cfg.event_date.strftime('%d %B %Y') if cfg and cfg.event_date else '01 May 2026' }}
           </p>
@@ -121,4 +138,32 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updatePreview() {
+  const heading = document.getElementById('colHeading').value;
+  const title   = document.getElementById('colTitle').value;
+  const name    = document.getElementById('colName').value;
+  const body    = document.getElementById('colBody').value;
+  const fontSel = document.getElementById('certFont');
+  const css     = fontSel.options[fontSel.selectedIndex].dataset.css || 'inherit';
+  const titleTxt = document.getElementById('previewTitle').value;
+
+  const content = document.getElementById('previewContent');
+  content.style.fontFamily = css;
+
+  document.getElementById('pHeading').style.color = heading;
+  document.getElementById('pHr').style.borderColor = heading;
+  document.getElementById('pTitle').style.color   = title;
+  document.getElementById('pTitle').textContent   = titleTxt || 'Certificate of Achievement';
+  document.getElementById('pItem').style.color    = title;
+  document.getElementById('pName').style.color    = name;
+  ['pBody1','pBody2','pBody3'].forEach(id => {
+    document.getElementById(id).style.color = body;
+  });
+}
+updatePreview();
+</script>
 {% endblock %}

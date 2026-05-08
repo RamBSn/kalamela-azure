@@ -140,6 +140,14 @@ def _apply_migrations():
     if 'event_config' in tables:
         existing = {c['name'] for c in inspector.get_columns('event_config')}
         for col, ddl in [
+            ('cert_font',            'ALTER TABLE event_config ADD COLUMN cert_font VARCHAR(500) DEFAULT "Times-Roman"'),
+            ('social_cert_bg_image', 'ALTER TABLE event_config ADD COLUMN social_cert_bg_image VARCHAR(300)'),
+            ('social_cert_font',     'ALTER TABLE event_config ADD COLUMN social_cert_font VARCHAR(500)'),
+            ('social_cert_pos_colour',  'ALTER TABLE event_config ADD COLUMN social_cert_pos_colour VARCHAR(10) DEFAULT "#d4af37"'),
+            ('social_cert_name_colour', 'ALTER TABLE event_config ADD COLUMN social_cert_name_colour VARCHAR(10) DEFAULT "#ffffff"'),
+            ('social_cert_item_colour', 'ALTER TABLE event_config ADD COLUMN social_cert_item_colour VARCHAR(10) DEFAULT "#ffffff"'),
+            ('social_cert_evt_colour',  'ALTER TABLE event_config ADD COLUMN social_cert_evt_colour VARCHAR(10) DEFAULT "#d4af37"'),
+            ('social_cert_overlay',  'ALTER TABLE event_config ADD COLUMN social_cert_overlay INTEGER DEFAULT 170'),
             ('smtp_host',       'ALTER TABLE event_config ADD COLUMN smtp_host VARCHAR(200)'),
             ('smtp_port',       'ALTER TABLE event_config ADD COLUMN smtp_port INTEGER DEFAULT 587'),
             ('smtp_username',   'ALTER TABLE event_config ADD COLUMN smtp_username VARCHAR(200)'),
