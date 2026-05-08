@@ -139,9 +139,17 @@
           padding:4% 5% 13% 5%;
           box-sizing:border-box;">
 
-        {# 1 · Logo #}
+        {# 1 · Logo (same resolution order as generator: cert_logo → welcome_logo → static) #}
+        {% if cfg and cfg.cert_logo %}
+        <img src="{{ url_for('static', filename='uploads/' + cfg.cert_logo) }}"
+             alt="Logo" style="max-height:10%;width:auto;object-fit:contain;">
+        {% elif cfg and cfg.welcome_logo %}
+        <img src="{{ url_for('static', filename='uploads/' + cfg.welcome_logo) }}"
+             alt="Logo" style="max-height:10%;width:auto;object-fit:contain;">
+        {% else %}
         <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
              alt="LKC" style="max-height:10%;width:auto;object-fit:contain;">
+        {% endif %}
 
         {# 2 · Gold top divider #}
         <div id="prevDivider" style="width:75%;height:3px;border-radius:2px;"></div>

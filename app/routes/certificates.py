@@ -69,16 +69,28 @@ def template_setup():
         cfg.cert_name_colour    = request.form.get('cert_name_colour',    '#8b6914').strip()
         cfg.cert_font           = request.form.get('cert_font', 'Times-Roman') or 'Times-Roman'
 
-        if 'bg_image' in request.files:
-            file = request.files['bg_image']
-            if file and file.filename and allowed_file(file.filename):
-                filename = secure_filename('cert_background.' + file.filename.rsplit('.', 1)[1].lower())
-                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
-                cfg.cert_bg_image = filename
-                flash('Background image uploaded.', 'success')
+        def _save_upload(field, dest_filename):
+            f = request.files.get(field)
+            if f and f.filename and allowed_file(f.filename):
+                ext  = f.filename.rsplit('.', 1)[1].lower()
+                name = secure_filename(f'{dest_filename}.{ext}')
+                f.save(os.path.join(current_app.config['UPLOAD_FOLDER'], name))
+                return name
+            return None
 
+        saved_bg = _save_upload('bg_image', 'cert_background')
+        if saved_bg:
+            cfg.cert_bg_image = saved_bg
+            flash('Background image uploaded.', 'success')
         if request.form.get('remove_bg'):
             cfg.cert_bg_image = None
+
+        saved_logo = _save_upload('cert_logo', 'cert_logo')
+        if saved_logo:
+            cfg.cert_logo = saved_logo
+            flash('Certificate logo uploaded.', 'success')
+        if request.form.get('remove_cert_logo'):
+            cfg.cert_logo = None
 
         db.session.commit()
         flash('Certificate template saved.', 'success')
@@ -126,6 +138,26 @@ def social_template():
     return render_template('certificates/social_template.html', cfg=cfg, font_choices=font_choices)
 
 
+def _cert_logo_path(cfg):
+    """
+    Resolve the best available logo for certificates.
+    Priority: cert_logo (template setup) → welcome_logo (event settings) → static lkc-logo.jpeg
+    """
+    upload = current_app.config['UPLOAD_FOLDER']
+    static_logo = os.path.join(current_app.root_path, 'static', 'lkc-logo.jpeg')
+    if cfg and cfg.cert_logo:
+        p = os.path.join(upload, cfg.cert_logo)
+        if os.path.exists(p):
+            return p
+    if cfg and cfg.welcome_logo:
+        p = os.path.join(upload, cfg.welcome_logo)
+        if os.path.exists(p):
+            return p
+    if os.path.exists(static_logo):
+        return static_logo
+    return None
+
+
 def _make_cert(cfg, name, item_name, category, position_label):
     from app.pdf.certificate import generate_certificate
     bg_path = None
@@ -146,15 +178,13 @@ def _make_cert(cfg, name, item_name, category, position_label):
         title_colour=cfg.cert_title_colour if cfg else '#1a1a2e',
         name_colour=cfg.cert_name_colour if cfg else '#8b6914',
         cert_font=cfg.cert_font if cfg else None,
+        cert_logo_path=_cert_logo_path(cfg),
     )
 
 
 def _make_social_cert(cfg, entry, position):
     from app.pdf.social_certificate import generate_social_certificate
-    logo_path = None
-    if cfg and cfg.welcome_logo:
-        logo_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cfg.welcome_logo)
-    # Use dedicated social background if set, else fall back to PDF cert background
+    # Social background: dedicated → PDF cert background → none
     bg_path = None
     if cfg and cfg.social_cert_bg_image:
         bg_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cfg.social_cert_bg_image)
@@ -167,7 +197,7 @@ def _make_social_cert(cfg, entry, position):
         item_name=entry.competition_item.name,
         category=entry.competition_item.category,
         position=position,
-        logo_path=logo_path,
+        logo_path=_cert_logo_path(cfg),
         bg_image_path=bg_path,
         font_value=cfg.social_cert_font if cfg else None,
         pos_colour=cfg.social_cert_pos_colour  if cfg else '#d4af37',

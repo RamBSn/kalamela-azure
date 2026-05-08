@@ -43,6 +43,7 @@ def generate_certificate(
     title_colour: str = '#1a1a2e',
     name_colour: str = '#8b6914',
     cert_font: str = None,
+    cert_logo_path: str = None,
 ) -> bytes:
     try:
         from reportlab.lib.pagesizes import A4, landscape
@@ -91,9 +92,11 @@ def generate_certificate(
     name_col    = _hex(name_colour,    '#8b6914')
 
     # ── Logo ──────────────────────────────────────────────────────────────────
-    if os.path.exists(_LOGO_PATH):
+    # Use cert_logo_path if provided, fall back to bundled lkc-logo.jpeg
+    _logo = cert_logo_path if (cert_logo_path and os.path.exists(cert_logo_path)) else _LOGO_PATH
+    if os.path.exists(_logo):
         logo_h = 24 * mm
-        c.drawImage(_LOGO_PATH,
+        c.drawImage(_logo,
                     (page_w - logo_h) / 2, page_h - 48 * mm,
                     width=logo_h, height=logo_h,
                     preserveAspectRatio=True, mask='auto')

@@ -141,6 +141,7 @@ def _apply_migrations():
         existing = {c['name'] for c in inspector.get_columns('event_config')}
         for col, ddl in [
             ('cert_font',            'ALTER TABLE event_config ADD COLUMN cert_font VARCHAR(500) DEFAULT "Times-Roman"'),
+            ('cert_logo',            'ALTER TABLE event_config ADD COLUMN cert_logo VARCHAR(300)'),
             ('social_cert_bg_image', 'ALTER TABLE event_config ADD COLUMN social_cert_bg_image VARCHAR(300)'),
             ('social_cert_font',     'ALTER TABLE event_config ADD COLUMN social_cert_font VARCHAR(500)'),
             ('social_cert_pos_colour',  'ALTER TABLE event_config ADD COLUMN social_cert_pos_colour VARCHAR(10) DEFAULT "#d4af37"'),

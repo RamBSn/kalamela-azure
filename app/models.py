@@ -16,7 +16,7 @@ class EventConfig(db.Model):
     event_date = db.Column(db.Date, nullable=True)
     venue = db.Column(db.String(300), nullable=True)
     cert_bg_image = db.Column(db.String(300), nullable=True)
-    cert_font = db.Column(db.String(100), default='Helvetica')
+    cert_logo = db.Column(db.String(300), nullable=True)   # logo used on PDF + social certs
     cert_font_size = db.Column(db.Integer, default=24)
     cert_font_colour = db.Column(db.String(10), default='#1a1a2e')   # body text
     cert_heading_colour = db.Column(db.String(10), default='#8b6914')  # event name
