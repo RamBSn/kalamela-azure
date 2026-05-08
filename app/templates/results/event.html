@@ -60,18 +60,24 @@
     </thead>
     <tbody>
       {% for e in all_entries %}
-      <tr>
+      <tr class="{{ 'text-muted' if e.is_cancelled }}">
         <td>#{{ e.chest_number }}</td>
         <td>{{ e.display_name }}</td>
         <td>{{ '%.1f' % e.final_score if e.scores_complete() else '—' }}</td>
         <td>
-          <span class="badge {{ 'bg-success' if e.scores_complete() else 'bg-warning text-dark' }}">
-            {{ 'Scored' if e.scores_complete() else 'Pending' }}
-          </span>
+          {% if e.is_cancelled %}
+            <span class="badge bg-secondary">Cancelled</span>
+          {% elif e.scores_complete() %}
+            <span class="badge bg-success">Scored</span>
+          {% else %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% endif %}
         </td>
         <td>
+          {% if not e.is_cancelled %}
           <a href="{{ url_for('scores.score_entry', entry_id=e.id) }}"
              class="btn btn-sm btn-outline-secondary">Score</a>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}
