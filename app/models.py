@@ -28,6 +28,14 @@ class EventConfig(db.Model):
     default_num_judges = db.Column(db.Integer, default=3)
     welcome_logo = db.Column(db.String(300), nullable=True)
     welcome_tagline = db.Column(db.String(300), nullable=True)
+    # SMTP email settings (for sending social certificates)
+    smtp_host = db.Column(db.String(200), nullable=True)
+    smtp_port = db.Column(db.Integer, default=587)
+    smtp_username = db.Column(db.String(200), nullable=True)
+    smtp_password = db.Column(db.String(300), nullable=True)
+    smtp_from_name = db.Column(db.String(200), nullable=True)
+    smtp_from_email = db.Column(db.String(200), nullable=True)
+    smtp_use_tls = db.Column(db.Boolean, default=True)
 
 
 class Stage(db.Model):

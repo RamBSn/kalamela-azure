@@ -137,6 +137,21 @@ def _apply_migrations():
                 db.session.execute(text(ddl))
                 db.session.commit()
 
+    if 'event_config' in tables:
+        existing = {c['name'] for c in inspector.get_columns('event_config')}
+        for col, ddl in [
+            ('smtp_host',       'ALTER TABLE event_config ADD COLUMN smtp_host VARCHAR(200)'),
+            ('smtp_port',       'ALTER TABLE event_config ADD COLUMN smtp_port INTEGER DEFAULT 587'),
+            ('smtp_username',   'ALTER TABLE event_config ADD COLUMN smtp_username VARCHAR(200)'),
+            ('smtp_password',   'ALTER TABLE event_config ADD COLUMN smtp_password VARCHAR(300)'),
+            ('smtp_from_name',  'ALTER TABLE event_config ADD COLUMN smtp_from_name VARCHAR(200)'),
+            ('smtp_from_email', 'ALTER TABLE event_config ADD COLUMN smtp_from_email VARCHAR(200)'),
+            ('smtp_use_tls',    'ALTER TABLE event_config ADD COLUMN smtp_use_tls INTEGER DEFAULT 1'),
+        ]:
+            if col not in existing:
+                db.session.execute(text(ddl))
+                db.session.commit()
+
     # Data migration: rename legacy event names to the correct LKC full name
     if 'event_config' in tables:
         db.session.execute(text(

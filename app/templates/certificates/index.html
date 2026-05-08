@@ -8,7 +8,7 @@
       <i class="bi bi-palette me-1"></i>Template Setup
     </a>
     <a href="{{ url_for('certificates.award_certificates') }}" class="btn btn-success">
-      <i class="bi bi-trophy me-1"></i>Download All Award Certificates
+      <i class="bi bi-trophy me-1"></i>All Award Certificates
     </a>
   </div>
 </div>
@@ -25,29 +25,98 @@
 </div>
 {% endif %}
 
-<h5 class="mt-4 mb-3">Event Certificates (1st, 2nd, 3rd)</h5>
+{% if not smtp_ok %}
+<div class="alert alert-secondary py-2 small">
+  <i class="bi bi-envelope-slash me-1"></i>
+  Email not configured — <a href="{{ url_for('setup.event_settings') }}">set up SMTP in Event Settings</a> to enable emailing certificates to participants.
+</div>
+{% endif %}
+
+<h5 class="mt-4 mb-3">Event Certificates</h5>
 {% if items %}
 {% set cat_order = ['Kids','Sub-Junior','Junior','Senior','Super Senior','Common'] %}
+{% set pos_labels = {1: '1st Prize', 2: '2nd Prize', 3: '3rd Prize'} %}
+{% set pos_social  = {1: 'Winner',   2: 'Runner Up', 3: 'Second Runner Up'} %}
+{% set pos_badge   = {1: 'bg-warning text-dark', 2: 'bg-secondary', 3: 'bg-secondary'} %}
+
 {% for cat in cat_order %}
   {% set cat_items = items | selectattr('category','equalto',cat) | list %}
   {% if cat_items %}
   <h6 class="text-muted mt-3">{{ cat }}</h6>
-  <div class="row g-2">
-    {% for item in cat_items %}
-    <div class="col-md-4">
-      <div class="card p-3 d-flex flex-row justify-content-between align-items-center">
-        <div>
-          <div class="fw-semibold">{{ item.name }}</div>
-          <div class="text-muted small">{{ item.category }}</div>
-        </div>
-        <a href="{{ url_for('certificates.event_certificates', item_id=item.id) }}"
-           class="btn btn-outline-primary btn-sm">
-          <i class="bi bi-download me-1"></i>ZIP
-        </a>
+  {% for item in cat_items %}
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+      <div>
+        <span class="fw-semibold">{{ item.name }}</span>
+        <span class="text-muted ms-2 small">{{ item.category }} &middot; {{ item.item_type }}</span>
       </div>
+      <a href="{{ url_for('certificates.event_certificates', item_id=item.id) }}"
+         class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-file-earmark-pdf me-1"></i>ZIP All PDFs
+      </a>
     </div>
-    {% endfor %}
+
+    {% set ranked = item_ranked.get(item.id, []) %}
+    {% if ranked %}
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr>
+          <th style="width:110px">Position</th>
+          <th>Name</th>
+          <th>Chest #</th>
+          <th class="text-end">PDF Cert</th>
+          <th class="text-end">Social PNG</th>
+          {% if smtp_ok %}<th class="text-end">Email</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in ranked %}
+        <tr>
+          <td>
+            <span class="badge {{ pos_badge.get(r.position, 'bg-secondary') }}">
+              {{ pos_labels[r.position] }}
+            </span>
+          </td>
+          <td>{{ r.entry.display_name }}</td>
+          <td>#{{ r.entry.chest_number }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('certificates.single_certificate', entry_id=r.entry.id, position=r.position) }}"
+               class="btn btn-sm btn-outline-secondary" target="_blank">
+              <i class="bi bi-file-earmark-pdf"></i>
+            </a>
+          </td>
+          <td class="text-end">
+            <a href="{{ url_for('certificates.social_certificate', entry_id=r.entry.id, position=r.position) }}"
+               class="btn btn-sm btn-outline-info" title="Download social PNG (1080×1920)">
+              <i class="bi bi-image"></i> PNG
+            </a>
+          </td>
+          {% if smtp_ok %}
+          <td class="text-end">
+            {% if r.entry.participant and r.entry.participant.email %}
+            <form method="post"
+                  action="{{ url_for('certificates.email_social_certificate', entry_id=r.entry.id, position=r.position) }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Email certificate to {{ r.entry.participant.email }}?')">
+              <button type="submit" class="btn btn-sm btn-outline-success"
+                      title="Email to {{ r.entry.participant.email }}">
+                <i class="bi bi-envelope"></i>
+              </button>
+            </form>
+            {% else %}
+            <span class="text-muted small" title="No email on record">—</span>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="card-body py-2 text-muted small">No scored entries yet.</div>
+    {% endif %}
   </div>
+  {% endfor %}
   {% endif %}
 {% endfor %}
 {% else %}

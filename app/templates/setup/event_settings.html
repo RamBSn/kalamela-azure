@@ -75,5 +75,70 @@
       </form>
     </div>
   </div>
+
+  <div class="col-md-6">
+    <div class="card p-4">
+      <h6 class="fw-semibold mb-3"><i class="bi bi-envelope me-1"></i>Email (SMTP) Settings</h6>
+      <p class="text-muted small">Used to email social certificates to participants. Leave blank to disable email sending.</p>
+      <form method="post" enctype="multipart/form-data">
+        {# Re-submit all non-SMTP fields as hidden so the same POST handler saves everything #}
+        <input type="hidden" name="event_name"            value="{{ cfg.event_name }}">
+        <input type="hidden" name="event_date"            value="{{ cfg.event_date.isoformat() if cfg.event_date else '' }}">
+        <input type="hidden" name="venue"                 value="{{ cfg.venue or '' }}">
+        <input type="hidden" name="scoresheet_blank_rows" value="{{ cfg.scoresheet_blank_rows }}">
+        <input type="hidden" name="default_num_judges"    value="{{ cfg.default_num_judges or 3 }}">
+        <input type="hidden" name="welcome_tagline"       value="{{ cfg.welcome_tagline or '' }}">
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">SMTP Host</label>
+          <input type="text" name="smtp_host" class="form-control"
+                 value="{{ cfg.smtp_host or '' }}" placeholder="smtp.gmail.com">
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-7">
+            <label class="form-label fw-semibold">SMTP Username</label>
+            <input type="text" name="smtp_username" class="form-control"
+                   value="{{ cfg.smtp_username or '' }}" placeholder="you@gmail.com">
+          </div>
+          <div class="col-5">
+            <label class="form-label fw-semibold">Port</label>
+            <input type="number" name="smtp_port" class="form-control"
+                   value="{{ cfg.smtp_port or 587 }}" min="1" max="65535">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Password</label>
+          <input type="password" name="smtp_password" class="form-control"
+                 placeholder="{{ '(saved — leave blank to keep)' if cfg.smtp_password else 'App password / SMTP password' }}">
+          <div class="form-text">Leave blank to keep the existing password.</div>
+        </div>
+        <div class="row g-3 mb-3">
+          <div class="col-7">
+            <label class="form-label fw-semibold">From Email</label>
+            <input type="email" name="smtp_from_email" class="form-control"
+                   value="{{ cfg.smtp_from_email or '' }}" placeholder="noreply@lkc.org.uk">
+          </div>
+          <div class="col-5">
+            <label class="form-label fw-semibold">Display Name</label>
+            <input type="text" name="smtp_from_name" class="form-control"
+                   value="{{ cfg.smtp_from_name or '' }}" placeholder="LKC Kalamela">
+          </div>
+        </div>
+        <div class="mb-4 form-check">
+          <input class="form-check-input" type="checkbox" name="smtp_use_tls" value="1"
+                 id="smtpTls" {{ 'checked' if cfg.smtp_use_tls is none or cfg.smtp_use_tls }}>
+          <label class="form-check-label" for="smtpTls">Use STARTTLS (recommended)</label>
+        </div>
+        {% if cfg.smtp_host %}
+        <div class="alert alert-success py-2 small">
+          <i class="bi bi-check-circle me-1"></i>
+          SMTP configured: <strong>{{ cfg.smtp_host }}:{{ cfg.smtp_port or 587 }}</strong>
+          as <strong>{{ cfg.smtp_from_email }}</strong>
+        </div>
+        {% endif %}
+        <button class="btn btn-primary">Save SMTP Settings</button>
+      </form>
+    </div>
+  </div>
 </div>
 {% endblock %}

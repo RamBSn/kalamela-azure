@@ -13,12 +13,6 @@ def require_admin():
         return redirect(url_for('auth.login', next=request.path))
 
 
-@setup_bp.before_request
-def require_admin():
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('auth.login', next=request.path))
-
-
 @setup_bp.route('/', methods=['GET', 'POST'])
 def event_settings():
     cfg = EventConfig.query.first()
@@ -51,6 +45,17 @@ def event_settings():
                     filename = secure_filename(f'welcome_logo.{ext}')
                     f.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
                     cfg.welcome_logo = filename
+
+        # SMTP settings
+        cfg.smtp_host       = request.form.get('smtp_host', '').strip() or None
+        cfg.smtp_port       = int(request.form.get('smtp_port') or 587)
+        cfg.smtp_username   = request.form.get('smtp_username', '').strip() or None
+        smtp_pw = request.form.get('smtp_password', '').strip()
+        if smtp_pw:                        # only overwrite if a new value was typed
+            cfg.smtp_password = smtp_pw
+        cfg.smtp_from_name  = request.form.get('smtp_from_name', '').strip() or None
+        cfg.smtp_from_email = request.form.get('smtp_from_email', '').strip() or None
+        cfg.smtp_use_tls    = bool(request.form.get('smtp_use_tls'))
 
         db.session.commit()
         flash('Event settings saved.', 'success')
