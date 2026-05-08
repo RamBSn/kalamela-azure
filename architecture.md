@@ -143,17 +143,41 @@ Set these in **Azure App Settings** (or `.env` for local testing):
 
 | Field | Type | Notes |
 |---|---|---|
-| event_name | String | e.g. "LKC Kalamela 2026" |
+| event_name | String | e.g. "Leicester Kerala Community Kalamela" |
 | event_date | Date | |
 | venue | String | |
 | welcome_logo | String | Filename in uploads folder |
 | welcome_tagline | String | Shown below event name on welcome page |
+| **PDF Certificate** | | |
 | cert_bg_image | String | Certificate background image filename |
+| cert_logo | String | Logo for PDF + social certs; falls back to welcome_logo then lkc-logo.jpeg |
 | cert_title_text | String | Default: "Certificate of Achievement" |
-| cert_font | String | Default: "Helvetica" |
+| cert_font | String | Built-in name or TTF path; default: "Times-Roman" |
 | cert_font_size | Integer | Default: 24 |
-| cert_font_colour | String | Hex colour, default: "#000000" |
+| cert_font_colour | String | Hex colour |
+| cert_heading_colour | String | Event name colour on PDF cert |
+| cert_title_colour | String | Title text colour on PDF cert |
+| cert_name_colour | String | Participant name colour on PDF cert |
 | cert_body_text | Text | Template with `{name}`, `{position}`, `{item}`, etc. |
+| **Social Certificate (PNG 1080×1920)** | | |
+| social_cert_bg_image | String | Portrait background image filename |
+| social_cert_font | String | Built-in name or TTF path |
+| social_cert_pos_colour | String | Position label colour; default: "#d4af37" |
+| social_cert_name_colour | String | Participant name colour; default: "#ffffff" |
+| social_cert_item_colour | String | Item name colour; default: "#ffffff" |
+| social_cert_evt_colour | String | "at Event" line colour; default: "#d4af37" |
+| social_cert_overlay | Integer | Dark overlay opacity 0–255; default: 170 |
+| social_cert_footer | String | Footer bar text; defaults to "Leicester Kerala Community" |
+| social_cert_show_footer | Boolean | Whether to show the footer bar; default: True |
+| **SMTP (email social certs)** | | |
+| smtp_host | String | |
+| smtp_port | Integer | Default: 587 |
+| smtp_username | String | |
+| smtp_password | String | |
+| smtp_from_name | String | |
+| smtp_from_email | String | |
+| smtp_use_tls | Boolean | Default: True |
+| **Other** | | |
 | scoresheet_blank_rows | Integer | Extra blank rows for late entries, default: 3 |
 | default_num_judges | Integer | Default: 3; overridable per item |
 
@@ -578,7 +602,7 @@ New tables (e.g. `stage_plan_item`) are created automatically by `db.create_all(
 [A] Print
 │   ├── /schedule/chest-numbers   Chest number cards (HTML preview + PDF)
 │   ├── /scoresheets/             Judge score sheets (PDF)
-│   └── /certificates/            Certificates (PDF)
+│   └── /certificates/            Certificates (PDF + social PNG); template setup, per-entry download/email
 
 [A] Data
 │   └── /data/                 Backup / Restore / Reset / Export

@@ -119,6 +119,7 @@ def social_template():
         cfg.social_cert_evt_colour  = request.form.get('social_cert_evt_colour',  '#d4af37').strip()
         cfg.social_cert_overlay     = max(0, min(255, int(request.form.get('social_cert_overlay') or 170)))
         cfg.social_cert_footer      = request.form.get('social_cert_footer', '').strip() or None
+        cfg.social_cert_show_footer = bool(request.form.get('social_cert_show_footer'))
 
         if 'social_bg_image' in request.files:
             file = request.files['social_bg_image']
@@ -207,6 +208,7 @@ def _make_social_cert(cfg, entry, position):
         evt_colour=cfg.social_cert_evt_colour   if cfg else '#d4af37',
         overlay_opacity=cfg.social_cert_overlay if cfg else 170,
         footer_text=cfg.social_cert_footer if cfg else None,
+        show_footer=bool(cfg.social_cert_show_footer) if cfg else True,
     )
 
 

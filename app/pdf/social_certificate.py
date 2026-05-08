@@ -80,6 +80,7 @@ def generate_social_certificate(
         evt_colour='#d4af37',
         overlay_opacity=170,
         footer_text=None,
+        show_footer=True,
 ):
     """
     Returns PNG bytes for a 1080×1920 social media certificate.
@@ -164,7 +165,8 @@ def generate_social_certificate(
     h_evt  = _block_h(_td, evt_lines,  f_evt,  14)
 
     TOTAL_CONTENT = h_logo + h_div + h_pos + h_item + h_cat + h_thin + h_name + h_evt
-    USABLE        = SOCIAL_H - BAR_H - TOTAL_CONTENT
+    canvas_bottom = SOCIAL_H - (BAR_H if show_footer else 0)
+    USABLE        = canvas_bottom - TOTAL_CONTENT
     N_GAPS        = 9   # gap before logo + 7 between blocks + gap after last block
     gap           = max(20, USABLE // N_GAPS)
 
@@ -205,11 +207,12 @@ def generate_social_certificate(
     _draw_lines(draw, y, evt_lines, f_evt, col_evt, 14, SOCIAL_W)
 
     # ── Footer bar (pinned to bottom) ─────────────────────────────────────────
-    draw.rectangle([(0, SOCIAL_H - BAR_H), (SOCIAL_W, SOCIAL_H)], fill=col_pos)
-    fb     = draw.textbbox((0, 0), footer_str, font=f_footer)
-    fw, fh = fb[2] - fb[0], fb[3] - fb[1]
-    draw.text(((SOCIAL_W - fw) // 2, SOCIAL_H - BAR_H + (BAR_H - fh) // 2),
-              footer_str, font=f_footer, fill=col_dark)
+    if show_footer:
+        draw.rectangle([(0, SOCIAL_H - BAR_H), (SOCIAL_W, SOCIAL_H)], fill=col_pos)
+        fb     = draw.textbbox((0, 0), footer_str, font=f_footer)
+        fw, fh = fb[2] - fb[0], fb[3] - fb[1]
+        draw.text(((SOCIAL_W - fw) // 2, SOCIAL_H - BAR_H + (BAR_H - fh) // 2),
+                  footer_str, font=f_footer, fill=col_dark)
 
     # ── Convert and return ────────────────────────────────────────────────────
     buf = io.BytesIO()

@@ -39,6 +39,7 @@ class EventConfig(db.Model):
     social_cert_evt_colour  = db.Column(db.String(10), default='#d4af37')
     social_cert_overlay     = db.Column(db.Integer, default=170)
     social_cert_footer      = db.Column(db.String(200), nullable=True)
+    social_cert_show_footer = db.Column(db.Boolean, default=True)
     # SMTP email settings (for sending social certificates)
     smtp_host = db.Column(db.String(200), nullable=True)
     smtp_port = db.Column(db.Integer, default=587)
