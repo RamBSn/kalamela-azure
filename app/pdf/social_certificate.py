@@ -79,6 +79,7 @@ def generate_social_certificate(
         item_colour='#ffffff',
         evt_colour='#d4af37',
         overlay_opacity=170,
+        footer_text=None,
 ):
     """
     Returns PNG bytes for a 1080×1920 social media certificate.
@@ -130,13 +131,13 @@ def generate_social_certificate(
     f_pos    = resolve_pillow_font(font_value, 96, bold=True)
     f_item   = resolve_pillow_font(font_value, 56)
     f_cat    = resolve_pillow_font(font_value, 38)
-    f_label  = resolve_pillow_font(font_value, 40)
     f_name   = resolve_pillow_font(font_value, 82, bold=True)
     f_evt    = resolve_pillow_font(font_value, 46)
     f_footer = resolve_pillow_font(font_value, 34)
 
+    footer_str = (footer_text or '').strip() or 'Leicester Kerala Community'
+
     # ── Pre-measure every block ───────────────────────────────────────────────
-    # Use a tiny scratch image for measurement only
     _td = ImageDraw.Draw(Image.new('RGBA', (10, 10)))
 
     def th(text, font):
@@ -144,31 +145,31 @@ def generate_social_certificate(
         return bb[3] - bb[1]
 
     position_label = POSITION_SOCIAL.get(position, f'Position {position}')
-    item_lines     = _wrap(_td, item_name,        f_item, max_w)
-    name_lines     = _wrap(_td, participant_name,  f_name, max_w)
-    evt_lines      = _wrap(_td, f'at {event_name}', f_evt, max_w)
+    item_lines = _wrap(_td, item_name,          f_item, max_w)
+    name_lines = _wrap(_td, participant_name,   f_name, max_w)
+    evt_lines  = _wrap(_td, f'at {event_name}', f_evt,  max_w)
 
-    DIVIDER_H  = 6    # thick gold divider
-    THIN_DIV_H = 2    # thin mid divider
+    DIVIDER_H  = 6
+    THIN_DIV_H = 2
 
-    h_logo   = logo_img.height if logo_img else 0
-    h_div    = DIVIDER_H
-    h_pos    = th(position_label, f_pos)
-    h_item   = _block_h(_td, item_lines, f_item, 12)
-    h_cat    = th(category, f_cat)
-    h_thin   = THIN_DIV_H
-    h_label  = th('This certifies that', f_label)
-    h_name   = _block_h(_td, name_lines,  f_name, 16)
-    h_evt    = _block_h(_td, evt_lines,   f_evt,  14)
+    # 8 content blocks (no "This certifies that"):
+    # logo · gold-div · position · item · category · thin-div · name · at-event
+    h_logo = logo_img.height if logo_img else 0
+    h_div  = DIVIDER_H
+    h_pos  = th(position_label, f_pos)
+    h_item = _block_h(_td, item_lines, f_item, 12)
+    h_cat  = th(category, f_cat)
+    h_thin = THIN_DIV_H
+    h_name = _block_h(_td, name_lines, f_name, 16)
+    h_evt  = _block_h(_td, evt_lines,  f_evt,  14)
 
-    # Nine content blocks → 10 gaps (before first block + between each pair + after last)
-    TOTAL_CONTENT = h_logo + h_div + h_pos + h_item + h_cat + h_thin + h_label + h_name + h_evt
+    TOTAL_CONTENT = h_logo + h_div + h_pos + h_item + h_cat + h_thin + h_name + h_evt
     USABLE        = SOCIAL_H - BAR_H - TOTAL_CONTENT
-    N_GAPS        = 10   # gap before logo + 8 between blocks + gap after last block
+    N_GAPS        = 9   # gap before logo + 7 between blocks + gap after last block
     gap           = max(20, USABLE // N_GAPS)
 
     # ── Draw ──────────────────────────────────────────────────────────────────
-    y = gap   # first gap before logo
+    y = gap
 
     # 1 · Logo
     if logo_img:
@@ -180,11 +181,11 @@ def generate_social_certificate(
     draw.rectangle([(140, y), (940, y + DIVIDER_H)], fill=col_pos)
     y += DIVIDER_H + gap
 
-    # 3 · Position label  ("Winner" / "Runner Up" / "Second Runner Up")
+    # 3 · Position label
     _draw_lines(draw, y, [position_label], f_pos, col_pos, 0, SOCIAL_W)
     y += h_pos + gap
 
-    # 4 · Item name (multi-line)
+    # 4 · Item name
     _draw_lines(draw, y, item_lines, f_item, col_item, 12, SOCIAL_W)
     y += h_item + gap
 
@@ -196,24 +197,19 @@ def generate_social_certificate(
     draw.rectangle([(300, y), (780, y + THIN_DIV_H)], fill=(255, 255, 255, 70))
     y += THIN_DIV_H + gap
 
-    # 7 · "This certifies that"
-    _draw_lines(draw, y, ['This certifies that'], f_label, col_silver, 0, SOCIAL_W, shadow=False)
-    y += h_label + gap
-
-    # 8 · Participant name (multi-line)
+    # 7 · Participant name
     _draw_lines(draw, y, name_lines, f_name, col_name, 16, SOCIAL_W)
     y += h_name + gap
 
-    # 9 · "at [EventName]" (multi-line)
+    # 8 · "at [EventName]"
     _draw_lines(draw, y, evt_lines, f_evt, col_evt, 14, SOCIAL_W)
 
     # ── Footer bar (pinned to bottom) ─────────────────────────────────────────
     draw.rectangle([(0, SOCIAL_H - BAR_H), (SOCIAL_W, SOCIAL_H)], fill=col_pos)
-    footer  = 'Leicester Kerala Community'
-    fb      = draw.textbbox((0, 0), footer, font=f_footer)
-    fw, fh  = fb[2] - fb[0], fb[3] - fb[1]
+    fb     = draw.textbbox((0, 0), footer_str, font=f_footer)
+    fw, fh = fb[2] - fb[0], fb[3] - fb[1]
     draw.text(((SOCIAL_W - fw) // 2, SOCIAL_H - BAR_H + (BAR_H - fh) // 2),
-              footer, font=f_footer, fill=col_dark)
+              footer_str, font=f_footer, fill=col_dark)
 
     # ── Convert and return ────────────────────────────────────────────────────
     buf = io.BytesIO()

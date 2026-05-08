@@ -92,6 +92,16 @@
           </div>
         </div>
 
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Footer Text</label>
+          <input type="text" name="social_cert_footer" id="footerInput"
+                 class="form-control"
+                 value="{{ cfg.social_cert_footer or '' }}"
+                 placeholder="Leicester Kerala Community"
+                 oninput="updatePreview()">
+          <div class="form-text">Shown in the coloured bar at the bottom. Leave blank to use "Leicester Kerala Community".</div>
+        </div>
+
         <div class="mb-4">
           <label class="form-label fw-semibold">
             Overlay Darkness &nbsp;<span id="overlayVal" class="text-muted small fw-normal"></span>
@@ -163,11 +173,8 @@
           <div style="font-size:0.6em;color:#ccc;margin-top:2px;">Junior</div>
         </div>
 
-        {# 5 · Middle divider + "This certifies that" #}
-        <div style="width:100%;">
-          <div style="width:50%;height:1px;background:rgba(255,255,255,0.25);margin:0 auto 5px;"></div>
-          <div style="font-size:0.55em;color:#ccc;">This certifies that</div>
-        </div>
+        {# 5 · Thin mid-divider #}
+        <div style="width:50%;height:1px;background:rgba(255,255,255,0.25);margin:0 auto;"></div>
 
         {# 6 · Name #}
         <div id="prevName" style="font-size:clamp(0.85rem,3.5cqw,1.2rem);font-weight:700;">
@@ -186,7 +193,7 @@
           height:10%;min-height:24px;
           display:flex;align-items:center;justify-content:center;
           font-size:clamp(0.45rem,1.8cqw,0.65rem);font-weight:700;color:#1a1a2e;">
-        Leicester Kerala Community
+        {{ cfg.social_cert_footer or 'Leicester Kerala Community' }}
       </div>
     </div>
   </div>
@@ -202,22 +209,25 @@ function updatePreview() {
   const evt     = document.getElementById('colEvt').value;
   const overlay = parseInt(document.getElementById('overlaySlider').value);
   const alpha   = (overlay / 255).toFixed(2);
+  const footer  = document.getElementById('footerInput').value.trim()
+                  || 'Leicester Kerala Community';
 
   const fontSel = document.getElementById('socialFont');
   const opt     = fontSel.options[fontSel.selectedIndex];
   const css     = (opt && opt.dataset.css) ? opt.dataset.css : 'sans-serif';
 
   document.getElementById('overlayVal').textContent = `(${overlay})`;
-  document.getElementById('previewOverlay').style.background  = `rgba(0,0,0,${alpha})`;
-  document.getElementById('previewOverlay').style.fontFamily  = css;
-  document.getElementById('prevFooter').style.fontFamily      = css;
+  document.getElementById('previewOverlay').style.background = `rgba(0,0,0,${alpha})`;
+  document.getElementById('previewOverlay').style.fontFamily = css;
+  document.getElementById('prevFooter').style.fontFamily     = css;
 
-  document.getElementById('prevPos').style.color     = pos;
-  document.getElementById('prevItem').style.color    = item;
-  document.getElementById('prevName').style.color    = name;
-  document.getElementById('prevEvt').style.color     = evt;
-  document.getElementById('prevDivider').style.background  = pos;
-  document.getElementById('prevFooter').style.background   = pos;
+  document.getElementById('prevPos').style.color    = pos;
+  document.getElementById('prevItem').style.color   = item;
+  document.getElementById('prevName').style.color   = name;
+  document.getElementById('prevEvt').style.color    = evt;
+  document.getElementById('prevDivider').style.background = pos;
+  document.getElementById('prevFooter').style.background  = pos;
+  document.getElementById('prevFooter').textContent       = footer;
 }
 
 updatePreview();

@@ -149,6 +149,7 @@ def _apply_migrations():
             ('social_cert_item_colour', 'ALTER TABLE event_config ADD COLUMN social_cert_item_colour VARCHAR(10) DEFAULT "#ffffff"'),
             ('social_cert_evt_colour',  'ALTER TABLE event_config ADD COLUMN social_cert_evt_colour VARCHAR(10) DEFAULT "#d4af37"'),
             ('social_cert_overlay',  'ALTER TABLE event_config ADD COLUMN social_cert_overlay INTEGER DEFAULT 170'),
+            ('social_cert_footer',   'ALTER TABLE event_config ADD COLUMN social_cert_footer VARCHAR(200)'),
             ('smtp_host',       'ALTER TABLE event_config ADD COLUMN smtp_host VARCHAR(200)'),
             ('smtp_port',       'ALTER TABLE event_config ADD COLUMN smtp_port INTEGER DEFAULT 587'),
             ('smtp_username',   'ALTER TABLE event_config ADD COLUMN smtp_username VARCHAR(200)'),
