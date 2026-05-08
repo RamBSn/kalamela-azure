@@ -107,8 +107,13 @@ function clearCandidates() {
 }
 
 function showCandidates(candidates) {
+  const available = candidates.filter(c => !members[c.id]);
+  if (!available.length) {
+    showMsg('All matching participants have already been added.', 'warning');
+    return;
+  }
   candidateListEl.innerHTML = '<div class="small fw-semibold mb-1 text-muted">Multiple participants found — select one to add:</div>';
-  candidates.forEach(c => {
+  available.forEach(c => {
     const row = document.createElement('div');
     row.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2';
     const eligible = c.eligible !== false;
