@@ -26,7 +26,7 @@
           </div>
           {% if cfg and cfg.cert_logo %}
           <div class="mb-2 d-flex align-items-center gap-3">
-            <img src="{{ url_for('static', filename='uploads/' + cfg.cert_logo) }}"
+            <img src="{{ url_for('main.uploads', filename=cfg.cert_logo) }}"
                  alt="Current cert logo"
                  style="max-height:64px;max-width:180px;object-fit:contain;border-radius:4px;background:#f8f8f8;padding:4px;">
             <label class="text-danger small">
@@ -51,7 +51,7 @@
           <label class="form-label fw-semibold">Background / Banner Image</label>
           {% if cfg and cfg.cert_bg_image %}
           <div class="mb-2 d-flex align-items-center gap-3">
-            <img src="{{ url_for('static', filename='uploads/' + cfg.cert_bg_image) }}"
+            <img src="{{ url_for('main.uploads', filename=cfg.cert_bg_image) }}"
                  alt="" style="max-height:56px;max-width:160px;object-fit:cover;border-radius:4px">
             <label class="form-check-label text-danger small">
               <input type="checkbox" name="remove_bg" value="1" class="form-check-input me-1">
@@ -130,7 +130,7 @@
       <div id="certPreview" class="border rounded p-3 text-center" style="
           position:relative;overflow:hidden;
           {% if cfg and cfg.cert_bg_image %}
-            background-image:url('{{ url_for('static', filename='uploads/' + cfg.cert_bg_image) }}');
+            background-image:url('{{ url_for('main.uploads', filename=cfg.cert_bg_image) }}');
             background-size:cover;background-position:center;
           {% else %}
             background-color:#f5f0e8;
@@ -144,10 +144,10 @@
         <div id="previewContent" style="position:relative;z-index:1;
             {% if cfg and cfg.cert_bg_image %}background:rgba(255,255,255,0.12);border-radius:6px;padding:0.5rem;{% endif %}">
           {% if cfg and cfg.cert_logo %}
-          <img src="{{ url_for('static', filename='uploads/' + cfg.cert_logo) }}"
+          <img src="{{ url_for('main.uploads', filename=cfg.cert_logo) }}"
                alt="Logo" style="height:48px;width:auto;object-fit:contain;margin-bottom:6px">
           {% elif cfg and cfg.welcome_logo %}
-          <img src="{{ url_for('static', filename='uploads/' + cfg.welcome_logo) }}"
+          <img src="{{ url_for('main.uploads', filename=cfg.welcome_logo) }}"
                alt="Logo" style="height:48px;width:auto;object-fit:contain;margin-bottom:6px">
           {% else %}
           <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"

@@ -1,4 +1,5 @@
-from flask import Blueprint, render_template, session, redirect, url_for
+import os
+from flask import Blueprint, render_template, session, redirect, url_for, current_app, send_from_directory
 from app import db
 from app.models import EventConfig, Participant, Entry, Stage, CompetitionItem
 
@@ -14,6 +15,12 @@ def inject_event():
             'event_date': cfg.event_date.strftime('%d %B %Y') if cfg.event_date else '',
         }
     return {'event_name': 'Leicester Kerala Community Kalamela', 'event_date': ''}
+
+
+@main_bp.route('/uploads/<path:filename>')
+def uploads(filename):
+    """Serve user-uploaded files from UPLOAD_FOLDER (works on both local and Azure)."""
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
 
 
 @main_bp.route('/')

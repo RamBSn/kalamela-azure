@@ -57,7 +57,7 @@
           <label class="form-label fw-semibold">Event Logo</label>
           {% if cfg.welcome_logo %}
           <div class="mb-2 d-flex align-items-center gap-3">
-            <img src="{{ url_for('static', filename='uploads/' + cfg.welcome_logo) }}"
+            <img src="{{ url_for('main.uploads', filename=cfg.welcome_logo) }}"
                  alt="Logo" style="max-height:80px;max-width:200px;object-fit:contain"
                  class="border rounded p-1 bg-white">
             <div class="form-check">

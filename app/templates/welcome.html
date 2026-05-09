@@ -74,7 +74,7 @@
 
       {# Logo #}
       {% if cfg and cfg.welcome_logo %}
-      <img src="{{ url_for('static', filename='uploads/' + cfg.welcome_logo) }}"
+      <img src="{{ url_for('main.uploads', filename=cfg.welcome_logo) }}"
            alt="Logo" class="event-logo mb-3">
       {% else %}
       <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"

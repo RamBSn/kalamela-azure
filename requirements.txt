@@ -4,3 +4,5 @@ SQLAlchemy==2.0.36
 reportlab==4.2.5
 Pillow==10.4.0
 gunicorn==22.0.0
+azure-keyvault-secrets==4.8.0
+azure-identity==1.17.1

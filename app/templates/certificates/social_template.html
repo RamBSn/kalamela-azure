@@ -28,7 +28,7 @@
           <label class="form-label fw-semibold">Background Image <span class="text-muted small">(portrait, 1080×1920 ideal)</span></label>
           {% if cfg and cfg.social_cert_bg_image %}
           <div class="mb-2 d-flex align-items-center gap-3">
-            <img src="{{ url_for('static', filename='uploads/' + cfg.social_cert_bg_image) }}"
+            <img src="{{ url_for('main.uploads', filename=cfg.social_cert_bg_image) }}"
                  alt="" style="max-height:72px;max-width:90px;object-fit:cover;border-radius:4px">
             <label class="text-danger small">
               <input type="checkbox" name="remove_social_bg" value="1" class="form-check-input me-1">Remove image
@@ -140,9 +140,9 @@
         border:2px solid #444;
         position:relative;
         {% if cfg and cfg.social_cert_bg_image %}
-          background:url('{{ url_for('static', filename='uploads/' + cfg.social_cert_bg_image) }}') center/cover;
+          background:url('{{ url_for('main.uploads', filename=cfg.social_cert_bg_image) }}') center/cover;
         {% elif cfg and cfg.cert_bg_image %}
-          background:url('{{ url_for('static', filename='uploads/' + cfg.cert_bg_image) }}') center/cover;
+          background:url('{{ url_for('main.uploads', filename=cfg.cert_bg_image) }}') center/cover;
         {% else %}
           background:#1a1a2e;
         {% endif %}">
@@ -158,10 +158,10 @@
 
         {# 1 · Logo (same resolution order as generator: cert_logo → welcome_logo → static) #}
         {% if cfg and cfg.cert_logo %}
-        <img src="{{ url_for('static', filename='uploads/' + cfg.cert_logo) }}"
+        <img src="{{ url_for('main.uploads', filename=cfg.cert_logo) }}"
              alt="Logo" style="max-height:10%;width:auto;object-fit:contain;">
         {% elif cfg and cfg.welcome_logo %}
-        <img src="{{ url_for('static', filename='uploads/' + cfg.welcome_logo) }}"
+        <img src="{{ url_for('main.uploads', filename=cfg.welcome_logo) }}"
              alt="Logo" style="max-height:10%;width:auto;object-fit:contain;">
         {% else %}
         <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"

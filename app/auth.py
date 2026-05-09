@@ -34,6 +34,28 @@ def _save_password_hash(new_hash):
         f.write(new_hash)
 
 
+def _update_keyvault_password(new_password: str) -> str | None:
+    """
+    Update the ADMIN_PASSWORD secret in Azure Key Vault using the managed identity.
+    Returns an error message string on failure, or None on success / when not configured.
+    Requires KEY_VAULT_URL env var and the App Service managed identity to have
+    'Key Vault Secrets Officer' role on the vault.
+    """
+    kv_url = os.environ.get('KEY_VAULT_URL', '').strip()
+    if not kv_url:
+        return None  # Not on Azure or not configured — silently skip
+    secret_name = os.environ.get('ADMIN_PASSWORD_SECRET_NAME', 'ADMIN-PASSWORD')
+    try:
+        from azure.identity import ManagedIdentityCredential
+        from azure.keyvault.secrets import SecretClient
+        credential = ManagedIdentityCredential()
+        client = SecretClient(vault_url=kv_url, credential=credential)
+        client.set_secret(secret_name, new_password)
+        return None
+    except Exception as exc:
+        return str(exc)
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if session.get('admin_logged_in'):
@@ -80,7 +102,11 @@ def change_password():
             new_hash = generate_password_hash(new_pw)
             current_app.config['ADMIN_PASSWORD_HASH'] = new_hash
             _save_password_hash(new_hash)
-            flash('Password changed successfully.', 'success')
+            kv_err = _update_keyvault_password(new_pw)
+            if kv_err:
+                flash(f'Password changed, but Key Vault update failed: {kv_err}', 'warning')
+            else:
+                flash('Password changed successfully.', 'success')
             return redirect(url_for('main.dashboard'))
 
     return render_template('auth/change_password.html')
