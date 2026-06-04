@@ -42,9 +42,19 @@
       {{ cat }}
     </a>
     {% endfor %}
-    <button onclick="window.print()" class="btn btn-success btn-sm ms-auto">
-      &#128438; Print / Save PDF
-    </button>
+    <div class="ms-auto d-flex gap-2">
+      <a href="{{ url_for('schedule.export_csv', category=category) }}"
+         class="btn btn-outline-secondary btn-sm">
+        &#128196; Export CSV
+      </a>
+      <a href="{{ url_for('schedule.export_excel', category=category) }}"
+         class="btn btn-outline-success btn-sm">
+        &#128202; Export Excel
+      </a>
+      <button onclick="window.print()" class="btn btn-success btn-sm">
+        &#128438; Print / Save PDF
+      </button>
+    </div>
   </div>
 </div>
 
@@ -63,34 +73,39 @@
   {% if schedule_data %}
     {% for row in schedule_data %}
     <div class="stage-heading">{{ row.stage.name }}</div>
+    {% for grp in row.event_groups %}
+    <div style="background:#dbe9ff;padding:3px 10px;font-weight:600;font-size:12px;margin-bottom:2px;">
+      {{ grp.item.name }}
+      <span style="font-weight:400;color:#555;margin-left:8px;">{{ grp.item.category }}</span>
+      <span class="badge-{{ grp.item.item_type }}" style="margin-left:6px;">{{ grp.item.item_type }}</span>
+    </div>
     <table>
       <thead>
         <tr>
           <th style="width:50px">#</th>
           <th style="width:70px">Chest</th>
           <th>Name / Group</th>
-          <th>Event</th>
-          <th style="width:90px">Category</th>
-          <th style="width:60px">Type</th>
+          <th style="width:120px">Contact</th>
         </tr>
       </thead>
       <tbody>
-        {% for e in row.entries %}
+        {% for e in grp.entries %}
         <tr>
           <td class="text-muted">{{ e.running_order }}</td>
           <td><strong>#{{ e.chest_number }}</strong></td>
           <td>{{ e.display_name }}</td>
-          <td>{{ e.competition_item.name }}</td>
-          <td>{{ e.competition_item.category }}</td>
           <td>
-            <span class="badge-{{ e.competition_item.item_type }}">
-              {{ e.competition_item.item_type }}
-            </span>
+            {%- if e.participant -%}
+              {{ e.participant.phone }}
+            {%- elif e.group_entry and e.group_entry.members -%}
+              {{ e.group_entry.members[0].phone }}
+            {%- endif -%}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    {% endfor %}
     {% endfor %}
   {% else %}
   <div class="alert alert-info">

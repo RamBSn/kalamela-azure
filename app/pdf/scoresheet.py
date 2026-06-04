@@ -131,14 +131,13 @@ def generate_scoresheet(item_id: int, gender: str = None, num_judges: int = 3) -
         story.append(Spacer(1, 4 * mm))
 
         # Score table
-        # Columns: Chest # | Name | [criteria cols] | TOTAL
+        # Columns: Chest # | [criteria cols] | TOTAL
         criteria_headers = [
             Paragraph(f'{c.name}\n(/{c.max_marks})', small_style)
             for c in criteria
         ]
         header_row = (
-            [Paragraph('<b>Chest #</b>', small_style),
-             Paragraph('<b>Name</b>', small_style)]
+            [Paragraph('<b>Chest #</b>', small_style)]
             + criteria_headers
             + [Paragraph(f'<b>TOTAL\n(/{item.max_marks_per_judge})</b>', small_style)]
         )
@@ -146,26 +145,22 @@ def generate_scoresheet(item_id: int, gender: str = None, num_judges: int = 3) -
         table_data = [header_row]
 
         for e in entries:
-            row = [
-                Paragraph(str(e.chest_number), small_style),
-                Paragraph(e.display_name, small_style),
-            ]
+            row = [Paragraph(str(e.chest_number), small_style)]
             row += [''] * len(criteria)
             row += ['']
             table_data.append(row)
 
         # Blank rows for late entries
         for _ in range(blank_rows):
-            blank_row = ['', ''] + [''] * len(criteria) + ['']
+            blank_row = [''] + [''] * len(criteria) + ['']
             table_data.append(blank_row)
 
         # Column widths
         usable_w = page_w - 20 * mm
         chest_w = 15 * mm
-        name_w = 45 * mm
         total_w = 18 * mm
-        criteria_w = (usable_w - chest_w - name_w - total_w) / max(len(criteria), 1)
-        col_widths = ([chest_w, name_w]
+        criteria_w = (usable_w - chest_w - total_w) / max(len(criteria), 1)
+        col_widths = ([chest_w]
                       + [criteria_w] * len(criteria)
                       + [total_w])
 
@@ -178,7 +173,7 @@ def generate_scoresheet(item_id: int, gender: str = None, num_judges: int = 3) -
             ('FONTSIZE', (0, 0), (-1, -1), 7),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-            ('ALIGN', (2, 1), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
             # Alternate row shading
             *[('BACKGROUND', (0, i), (-1, i), colors.HexColor('#f9f9f9'))
               for i in range(2, len(entries) + blank_rows + 1, 2)],
