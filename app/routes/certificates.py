@@ -278,17 +278,23 @@ def email_social_certificate(entry_id, position):
         flash('SMTP not configured — go to Event Settings to set it up.', 'danger')
         return redirect(url_for('certificates.index'))
 
+    include_pdf = request.form.get('include_pdf') == '1'
+
     try:
         png = _make_social_cert(cfg, entry, position)
-        _send_social_email(cfg, recipient, entry, position, png)
-        flash(f'Certificate emailed to {recipient}.', 'success')
+        pdf = _make_cert(cfg, entry.display_name, entry.competition_item.name,
+                         entry.competition_item.category,
+                         POSITION_LABELS.get(position, f'{position}th')) if include_pdf else None
+        _send_social_email(cfg, recipient, entry, position, png, pdf_bytes=pdf)
+        suffix = ' (with PDF certificate)' if include_pdf else ''
+        flash(f'Certificate emailed to {recipient}{suffix}.', 'success')
     except Exception as exc:
         flash(f'Email failed: {exc}', 'danger')
 
     return redirect(url_for('certificates.index'))
 
 
-def _send_social_email(cfg, recipient, entry, position, png_bytes):
+def _send_social_email(cfg, recipient, entry, position, png_bytes, pdf_bytes=None):
     position_label = POSITION_SOCIAL.get(position, f'Position {position}')
     item_name      = entry.competition_item.name
     event_name     = cfg.event_name or 'Kalamela'
@@ -317,6 +323,14 @@ def _send_social_email(cfg, recipient, entry, position, png_bytes):
     safe_name = f'certificate_{entry.display_name}_{item_name}.png'.replace(' ', '_')
     part.add_header('Content-Disposition', 'attachment', filename=safe_name)
     msg.attach(part)
+
+    if pdf_bytes:
+        pdf_part = MIMEBase('application', 'pdf')
+        pdf_part.set_payload(pdf_bytes)
+        encoders.encode_base64(pdf_part)
+        pdf_name = f'certificate_{entry.display_name}_{item_name}.pdf'.replace(' ', '_')
+        pdf_part.add_header('Content-Disposition', 'attachment', filename=pdf_name)
+        msg.attach(pdf_part)
 
     port = cfg.smtp_port or 587
     if cfg.smtp_use_tls:

@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, send_file, abort, session, redirect, url_for, request
 import io
 from app.models import CompetitionItem, Entry, EventConfig
-from app.pdf.scoresheet import _entry_gender
 
 
 def _effective_num_judges(item):
@@ -43,13 +42,7 @@ def index():
     cat_order = ['Kids', 'Sub-Junior', 'Junior', 'Senior', 'Super Senior', 'Common']
     grouped = [(cat, by_cat[cat]) for cat in cat_order if cat in by_cat]
 
-    # Determine which genders are present per item
-    item_genders = {}
-    for item in items:
-        genders = {_entry_gender(e) for e in item.entries} - {None}
-        item_genders[item.id] = genders
-
-    return render_template('scoresheets/index.html', grouped=grouped, item_genders=item_genders)
+    return render_template('scoresheets/index.html', grouped=grouped)
 
 
 @scoresheets_bp.route('/generate/<int:item_id>')

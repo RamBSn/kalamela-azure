@@ -97,15 +97,42 @@
           {% if smtp_ok %}
           <td class="text-end">
             {% if r.entry.participant and r.entry.participant.email %}
-            <form method="post"
-                  action="{{ url_for('certificates.email_social_certificate', entry_id=r.entry.id, position=r.position) }}"
-                  style="display:inline"
-                  onsubmit="return confirm('Email certificate to {{ r.entry.participant.email }}?')">
-              <button type="submit" class="btn btn-sm btn-outline-success"
-                      title="Email to {{ r.entry.participant.email }}">
-                <i class="bi bi-envelope"></i>
+            <div class="btn-group btn-group-sm">
+              <form method="post"
+                    action="{{ url_for('certificates.email_social_certificate', entry_id=r.entry.id, position=r.position) }}"
+                    onsubmit="return confirm('Email social PNG to {{ r.entry.participant.email }}?')">
+                <input type="hidden" name="include_pdf" value="0">
+                <button type="submit" class="btn btn-outline-success"
+                        title="Email social PNG to {{ r.entry.participant.email }}">
+                  <i class="bi bi-envelope"></i>
+                </button>
+              </form>
+              <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
+                      data-bs-toggle="dropdown" aria-expanded="false">
               </button>
-            </form>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <form method="post"
+                        action="{{ url_for('certificates.email_social_certificate', entry_id=r.entry.id, position=r.position) }}"
+                        onsubmit="return confirm('Email social PNG to {{ r.entry.participant.email }}?')">
+                    <input type="hidden" name="include_pdf" value="0">
+                    <button type="submit" class="dropdown-item">
+                      <i class="bi bi-image me-2"></i>Social PNG only
+                    </button>
+                  </form>
+                </li>
+                <li>
+                  <form method="post"
+                        action="{{ url_for('certificates.email_social_certificate', entry_id=r.entry.id, position=r.position) }}"
+                        onsubmit="return confirm('Email social PNG + PDF certificate to {{ r.entry.participant.email }}?')">
+                    <input type="hidden" name="include_pdf" value="1">
+                    <button type="submit" class="dropdown-item">
+                      <i class="bi bi-file-earmark-pdf me-2"></i>Social PNG + PDF cert
+                    </button>
+                  </form>
+                </li>
+              </ul>
+            </div>
             {% else %}
             <span class="text-muted small" title="No email on record">—</span>
             {% endif %}
