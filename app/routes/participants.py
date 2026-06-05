@@ -1,14 +1,70 @@
 import re
+import io
+import smtplib
 import logging
 from datetime import date
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from markupsafe import Markup, escape
 from werkzeug.datastructures import ImmutableMultiDict
 from app import db
-from app.models import Participant, GroupEntry, Entry, CompetitionItem
+from app.models import Participant, GroupEntry, Entry, CompetitionItem, EventConfig
 from app.auth import login_required
 
 logger = logging.getLogger(__name__)
+
+
+def _send_registration_email(participant, enrolled_items):
+    """Send a registration confirmation email. Silently skips if SMTP not configured."""
+    cfg = EventConfig.query.first()
+    if not (cfg and cfg.smtp_host and cfg.smtp_username and cfg.smtp_from_email):
+        return
+    if not participant.email:
+        return
+
+    event_name = cfg.event_name or 'Kalamela'
+    from_name  = cfg.smtp_from_name or event_name
+    from_addr  = cfg.smtp_from_email
+
+    event_lines = '\n'.join(
+        f'  • {item.name} ({item.category})'
+        for item in enrolled_items
+    )
+    event_date_str = cfg.event_date.strftime('%d %B %Y') if cfg.event_date else ''
+
+    body = (
+        f'Dear {participant.full_name},\n\n'
+        f'Thank you for registering for {event_name}'
+        f'{f" on {event_date_str}" if event_date_str else ""}.\n\n'
+        f'Your chest number is: #{participant.chest_number}\n\n'
+        f'You are registered for the following event(s):\n{event_lines}\n\n'
+        f'Please keep this email for your reference and bring your chest number on the day.\n\n'
+        f'Best wishes,\n{from_name}'
+    )
+
+    msg = MIMEMultipart()
+    msg['From']    = f'{from_name} <{from_addr}>'
+    msg['To']      = participant.email
+    msg['Subject'] = f'Registration confirmed — {event_name}'
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        port = cfg.smtp_port or 587
+        if cfg.smtp_use_tls:
+            server = smtplib.SMTP(cfg.smtp_host, port, timeout=15)
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
+        else:
+            server = smtplib.SMTP_SSL(cfg.smtp_host, port, timeout=15)
+        server.login(cfg.smtp_username, cfg.smtp_password or '')
+        server.sendmail(from_addr, [participant.email], msg.as_string())
+        server.quit()
+        logger.info('Registration email sent to %s', participant.email)
+    except Exception as exc:
+        logger.warning('Registration email failed for %s: %s', participant.email, exc)
+
 
 participants_bp = Blueprint('participants', __name__)
 
@@ -144,7 +200,10 @@ def list_participants():
             (Participant.lkc_id.ilike(f'%{search}%'))
         )
     participants = query.order_by(Participant.chest_number).all()
-    return render_template('participants/list.html', participants=participants, search=search)
+    cfg = EventConfig.query.first()
+    smtp_ok = bool(cfg and cfg.smtp_host and cfg.smtp_username and cfg.smtp_from_email)
+    return render_template('participants/list.html', participants=participants,
+                           search=search, smtp_ok=smtp_ok)
 
 
 def _ss_excluded_senior_ids():
@@ -280,6 +339,11 @@ def register_individual():
 
         db.session.commit()
         flash(f'Registered {participant.full_name} (Chest #{participant.chest_number}).', 'success')
+
+        enrolled_items = [CompetitionItem.query.get(int(iid)) for iid in selected_item_ids
+                          if CompetitionItem.query.get(int(iid))]
+        _send_registration_email(participant, enrolled_items)
+
         return redirect(url_for('participants.register_individual'))
 
     return render_template(
@@ -590,6 +654,59 @@ def participant_by_db_id():
                 result['eligible'] = False
                 result['eligibility_issues'] = issues
     return jsonify(result)
+
+
+@participants_bp.route('/<int:pid>/send-confirmation', methods=['POST'])
+@login_required
+def send_confirmation_email(pid):
+    participant = Participant.query.get_or_404(pid)
+    if not participant.email:
+        flash(f'No email address on record for {participant.full_name}.', 'warning')
+        return redirect(url_for('participants.list_participants'))
+    enrolled_items = [e.competition_item for e in participant.individual_entries]
+    cfg = EventConfig.query.first()
+    smtp_ok = bool(cfg and cfg.smtp_host and cfg.smtp_username and cfg.smtp_from_email)
+    if not smtp_ok:
+        flash('SMTP not configured — set it up in Event Settings first.', 'danger')
+        return redirect(url_for('participants.list_participants'))
+    try:
+        _send_registration_email(participant, enrolled_items)
+        flash(f'Confirmation email sent to {participant.email}.', 'success')
+    except Exception as exc:
+        flash(f'Email failed: {exc}', 'danger')
+    return redirect(url_for('participants.list_participants'))
+
+
+@participants_bp.route('/send-all-confirmations', methods=['POST'])
+@login_required
+def send_all_confirmation_emails():
+    cfg = EventConfig.query.first()
+    smtp_ok = bool(cfg and cfg.smtp_host and cfg.smtp_username and cfg.smtp_from_email)
+    if not smtp_ok:
+        flash('SMTP not configured — set it up in Event Settings first.', 'danger')
+        return redirect(url_for('participants.list_participants'))
+
+    participants = Participant.query.filter(Participant.email.isnot(None)).all()
+    sent = failed = skipped = 0
+    for p in participants:
+        if not p.email:
+            skipped += 1
+            continue
+        try:
+            enrolled_items = [e.competition_item for e in p.individual_entries]
+            _send_registration_email(p, enrolled_items)
+            sent += 1
+        except Exception as exc:
+            logger.warning('Bulk confirmation email failed for %s: %s', p.email, exc)
+            failed += 1
+
+    parts = [f'{sent} sent']
+    if failed:
+        parts.append(f'{failed} failed')
+    if skipped:
+        parts.append(f'{skipped} skipped (no email)')
+    flash(f'Bulk confirmation emails: {", ".join(parts)}.', 'success' if not failed else 'warning')
+    return redirect(url_for('participants.list_participants'))
 
 
 @participants_bp.route('/groups')

@@ -7,6 +7,14 @@
     <a href="{{ url_for('participants.list_groups') }}" class="btn btn-outline-secondary">
       <i class="bi bi-people-fill me-1"></i>View Groups
     </a>
+    {% if smtp_ok %}
+    <form method="post" action="{{ url_for('participants.send_all_confirmation_emails') }}"
+          onsubmit="return confirm('Send registration confirmation emails to all participants with an email address?')">
+      <button class="btn btn-outline-info">
+        <i class="bi bi-envelope-check me-1"></i>Email All
+      </button>
+    </form>
+    {% endif %}
     <a href="{{ url_for('participants.register_individual') }}" class="btn btn-primary">
       <i class="bi bi-person-plus me-1"></i>Register Individual
     </a>
@@ -54,6 +62,14 @@
              class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-pencil"></i>
           </a>
+          {% if smtp_ok and p.email %}
+          <form method="post" action="{{ url_for('participants.send_confirmation_email', pid=p.id) }}"
+                class="d-inline" onsubmit="return confirm('Send confirmation email to {{ p.email }}?')">
+            <button class="btn btn-sm btn-outline-info" title="Email confirmation to {{ p.email }}">
+              <i class="bi bi-envelope"></i>
+            </button>
+          </form>
+          {% endif %}
           <form method="post" action="{{ url_for('participants.delete_participant', pid=p.id) }}"
                 class="d-inline" onsubmit="return confirm('Remove {{ p.full_name }}?')">
             <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
