@@ -223,3 +223,108 @@ def export_data():
         as_attachment=True,
         download_name='kalamela_participants.csv',
     )
+
+
+def _entries_rows():
+    """Return (headers, rows) for all entries, ordered by chest number."""
+    entries = Entry.query.order_by(Entry.id).all()
+    entries.sort(key=lambda e: (e.chest_number or 0, e.id))
+    headers = ['Chest #', 'Name / Group', 'Type', 'Event', 'Category',
+               'Stage', 'Running Order', 'Status', 'Contact']
+    rows = []
+    for e in entries:
+        if e.participant:
+            contact = e.participant.phone or ''
+            etype = 'solo'
+        elif e.group_entry:
+            contact = e.group_entry.members[0].phone if e.group_entry.members else ''
+            etype = 'group'
+        else:
+            contact = ''
+            etype = ''
+        rows.append([
+            e.chest_number,
+            e.display_name,
+            etype,
+            e.competition_item.name,
+            e.competition_item.category,
+            e.stage.name if e.stage else '',
+            e.running_order or '',
+            e.status or '',
+            contact,
+        ])
+    return headers, rows
+
+
+@data_bp.route('/export/entries/csv')
+def export_entries_csv():
+    cfg = EventConfig.query.first()
+    event_name = cfg.event_name if cfg else 'Kalamela'
+    headers, rows = _entries_rows()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(headers)
+    writer.writerows(rows)
+
+    response_data = io.BytesIO(buf.getvalue().encode('utf-8'))
+    return send_file(response_data, mimetype='text/csv', as_attachment=True,
+                     download_name=f"{event_name.replace(' ', '_')}_entries.csv")
+
+
+@data_bp.route('/export/entries/excel')
+def export_entries_excel():
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        flash('openpyxl is required for Excel export.', 'danger')
+        return redirect(url_for('data.index'))
+
+    cfg = EventConfig.query.first()
+    event_name = cfg.event_name if cfg else 'Kalamela'
+    headers, rows = _entries_rows()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Entries'
+
+    # Title
+    ws.merge_cells(f'A1:{chr(64 + len(headers))}1')
+    ws['A1'] = f'{event_name} — All Entries'
+    ws['A1'].font = Font(bold=True, size=13)
+    ws['A1'].alignment = Alignment(horizontal='center')
+
+    # Header row
+    header_fill = PatternFill('solid', fgColor='1A1A2E')
+    header_font = Font(bold=True, color='FFFFFF')
+    for col, h in enumerate(headers, start=1):
+        cell = ws.cell(row=2, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+
+    # Data rows with alternating shading
+    alt_fill = PatternFill('solid', fgColor='F2F2F2')
+    for row_idx, row in enumerate(rows, start=3):
+        for col_idx, value in enumerate(row, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            if row_idx % 2 == 0:
+                cell.fill = alt_fill
+
+    # Column widths
+    col_widths = [10, 30, 8, 28, 14, 18, 14, 12, 16]
+    for i, w in enumerate(col_widths, start=1):
+        ws.column_dimensions[chr(64 + i)].width = w
+
+    ws.freeze_panes = 'A3'
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return send_file(
+        buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f"{event_name.replace(' ', '_')}_entries.xlsx",
+    )
