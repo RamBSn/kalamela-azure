@@ -221,12 +221,21 @@ def _ss_excluded_senior_ids():
 
 @participants_bp.route('/register', methods=['GET', 'POST'])
 def register_individual():
+    cfg = EventConfig.query.first()
     items = CompetitionItem.query.order_by(
         CompetitionItem.category, CompetitionItem.name
     ).all()
     ss_excluded = _ss_excluded_senior_ids()
 
     today = date.today().isoformat()
+
+    if cfg and cfg.registration_closed:
+        return render_template(
+            'participants/register_individual.html',
+            items=items, warnings=[], form_data=ImmutableMultiDict(),
+            categories=CATEGORIES, today=today,
+            ss_excluded_senior_ids=ss_excluded, cfg=cfg,
+        )
 
     if request.method == 'POST':
         def _re_render(warnings=None, error=None):
@@ -240,6 +249,7 @@ def register_individual():
                 categories=CATEGORIES,
                 today=today,
                 ss_excluded_senior_ids=ss_excluded,
+                cfg=cfg,
             )
 
         # --- Hard-block: event count (no override offered) ---
@@ -354,6 +364,7 @@ def register_individual():
         categories=CATEGORIES,
         today=today,
         ss_excluded_senior_ids=ss_excluded,
+        cfg=cfg,
     )
 
 
@@ -417,9 +428,17 @@ def delete_participant(pid):
 
 @participants_bp.route('/groups/register', methods=['GET', 'POST'])
 def register_group():
+    cfg = EventConfig.query.first()
     items = CompetitionItem.query.filter_by(item_type='group').order_by(
         CompetitionItem.category, CompetitionItem.name
     ).all()
+
+    if cfg and cfg.registration_closed:
+        return render_template(
+            'participants/register_group.html',
+            items=items, selected_members=[], warnings=[],
+            form_data=ImmutableMultiDict(), cfg=cfg,
+        )
 
     if request.method == 'POST':
         item_id = int(request.form['item_id'])
@@ -437,7 +456,7 @@ def register_group():
             )
             return render_template(
                 'participants/register_group.html',
-                items=items, selected_members=[], warnings=[], form_data=request.form,
+                items=items, selected_members=[], warnings=[], form_data=request.form, cfg=cfg,
             )
 
         member_ids = request.form.getlist('members[]')
@@ -496,6 +515,7 @@ def register_group():
                 selected_members=selected,
                 warnings=warnings,
                 form_data=request.form,
+                cfg=cfg,
             )
 
         group = GroupEntry(
@@ -517,6 +537,7 @@ def register_group():
         selected_members=[],
         warnings=[],
         form_data=ImmutableMultiDict(),
+        cfg=cfg,
     )
 
 

@@ -33,6 +33,7 @@ def event_settings():
         cfg.scoresheet_blank_rows = int(request.form.get('scoresheet_blank_rows', 3))
         cfg.default_num_judges = int(request.form.get('default_num_judges', 3))
         cfg.welcome_tagline = request.form.get('welcome_tagline', '').strip() or None
+        cfg.registration_closed = bool(request.form.get('registration_closed'))
 
         # Logo upload
         if request.form.get('remove_logo'):

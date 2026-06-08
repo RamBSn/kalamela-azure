@@ -45,6 +45,20 @@
         </div>
 
         <hr>
+        <h6 class="fw-semibold mb-3">Registration</h6>
+        <div class="mb-3 form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="registration_closed" value="1"
+                 id="regClosed" {{ 'checked' if cfg.registration_closed }}>
+          <label class="form-check-label fw-semibold" for="regClosed">
+            Close Registration
+          </label>
+          <div class="form-text">
+            When enabled, the registration page shows a &ldquo;Registration Closed&rdquo; notice
+            and the form is hidden.
+          </div>
+        </div>
+
+        <hr>
         <h6 class="fw-semibold mb-3">Welcome Page</h6>
         <div class="mb-3">
           <label class="form-label fw-semibold">Tagline</label>
@@ -88,6 +102,7 @@
         <input type="hidden" name="scoresheet_blank_rows" value="{{ cfg.scoresheet_blank_rows }}">
         <input type="hidden" name="default_num_judges"    value="{{ cfg.default_num_judges or 3 }}">
         <input type="hidden" name="welcome_tagline"       value="{{ cfg.welcome_tagline or '' }}">
+        <input type="hidden" name="registration_closed"  value="{{ '1' if cfg.registration_closed else '' }}">
 
         <div class="mb-3">
           <label class="form-label fw-semibold">SMTP Host</label>

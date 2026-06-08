@@ -23,6 +23,27 @@
 {% endblock %}
 
 {% block content %}
+
+{% if cfg and cfg.registration_closed %}
+<div class="d-flex flex-column align-items-center justify-content-center py-5 text-center">
+  {% if cfg.welcome_logo %}
+  <img src="{{ url_for('main.uploads', filename=cfg.welcome_logo) }}"
+       alt="Logo" style="max-height:120px;max-width:280px;object-fit:contain" class="mb-4">
+  {% else %}
+  <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
+       alt="LKC Logo" style="max-height:120px;max-width:280px;object-fit:contain" class="mb-4">
+  {% endif %}
+  <h3 class="fw-bold text-danger mb-2">Registration Closed</h3>
+  <p class="text-muted mb-0">
+    Registration for
+    <strong>{{ cfg.event_name }}</strong>
+    {% if cfg.event_date %}on <strong>{{ cfg.event_date.strftime('%d %B %Y') }}</strong>{% endif %}
+    is now closed.
+  </p>
+  <p class="text-muted small mt-1">Please contact the event coordinator for assistance.</p>
+</div>
+{% else %}
+
 <div class="page-header">
   <h2><i class="bi bi-person-plus me-2"></i>Register Individual Participant</h2>
 </div>
@@ -242,6 +263,7 @@
     </form>
   </div>
 </div>
+{% endif %}{# end registration_closed check #}
 {% endblock %}
 
 {% block extra_js %}

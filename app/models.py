@@ -48,6 +48,7 @@ class EventConfig(db.Model):
     smtp_from_name = db.Column(db.String(200), nullable=True)
     smtp_from_email = db.Column(db.String(200), nullable=True)
     smtp_use_tls = db.Column(db.Boolean, default=True)
+    registration_closed = db.Column(db.Boolean, default=False)
 
 
 class Stage(db.Model):

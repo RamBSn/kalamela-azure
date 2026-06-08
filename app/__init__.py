@@ -157,7 +157,8 @@ def _apply_migrations():
             ('smtp_password',   'ALTER TABLE event_config ADD COLUMN smtp_password VARCHAR(300)'),
             ('smtp_from_name',  'ALTER TABLE event_config ADD COLUMN smtp_from_name VARCHAR(200)'),
             ('smtp_from_email', 'ALTER TABLE event_config ADD COLUMN smtp_from_email VARCHAR(200)'),
-            ('smtp_use_tls',    'ALTER TABLE event_config ADD COLUMN smtp_use_tls INTEGER DEFAULT 1'),
+            ('smtp_use_tls',         'ALTER TABLE event_config ADD COLUMN smtp_use_tls INTEGER DEFAULT 1'),
+            ('registration_closed',  'ALTER TABLE event_config ADD COLUMN registration_closed INTEGER DEFAULT 0'),
         ]:
             if col not in existing:
                 db.session.execute(text(ddl))
