@@ -49,6 +49,14 @@ class EventConfig(db.Model):
     smtp_from_email = db.Column(db.String(200), nullable=True)
     smtp_use_tls = db.Column(db.Boolean, default=True)
     registration_closed = db.Column(db.Boolean, default=False)
+    # Background-image certificate options
+    cert_show_logo  = db.Column(db.Boolean, default=True)
+    cert_show_prize = db.Column(db.Boolean, default=True)
+    cert_name_y_pct  = db.Column(db.Float, default=45.0)   # % from top of page
+    cert_prize_y_pct = db.Column(db.Float, default=57.0)
+    cert_event_y_pct = db.Column(db.Float, default=68.0)
+    # Participation certificate background (separate from winner cert background)
+    cert_participation_bg_image = db.Column(db.String(300), nullable=True)
 
 
 class Stage(db.Model):

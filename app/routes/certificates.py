@@ -26,8 +26,8 @@ def require_admin():
 
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-POSITION_LABELS = {1: '1st Prize', 2: '2nd Prize', 3: '3rd Prize'}
-POSITION_SOCIAL  = {1: 'Winner',   2: 'Runner Up', 3: 'Second Runner Up'}
+POSITION_LABELS = {1: 'Winner', 2: 'First Runner Up', 3: 'Second Runner Up'}
+POSITION_SOCIAL  = {1: 'Winner', 2: 'First Runner Up', 3: 'Second Runner Up'}
 
 
 def allowed_file(filename):
@@ -41,13 +41,17 @@ def index():
              .order_by(CompetitionItem.category, CompetitionItem.name).all())
 
     item_ranked = {}
+    item_participation = {}
     for item in items:
         ranked = get_event_results(item.id)
         item_ranked[item.id] = [r for r in ranked if r['position'] <= 3]
+        item_participation[item.id] = _participation_entries_for_item(item.id)
 
     smtp_ok = bool(cfg and cfg.smtp_host and cfg.smtp_username and cfg.smtp_from_email)
     return render_template('certificates/index.html', cfg=cfg, items=items,
-                           item_ranked=item_ranked, smtp_ok=smtp_ok)
+                           item_ranked=item_ranked,
+                           item_participation=item_participation,
+                           smtp_ok=smtp_ok)
 
 
 # ── PDF Certificate Template ─────────────────────────────────────────────────
@@ -68,6 +72,21 @@ def template_setup():
         cfg.cert_title_colour   = request.form.get('cert_title_colour',   '#1a1a2e').strip()
         cfg.cert_name_colour    = request.form.get('cert_name_colour',    '#8b6914').strip()
         cfg.cert_font           = request.form.get('cert_font', 'Times-Roman') or 'Times-Roman'
+        cfg.cert_show_logo      = bool(request.form.get('cert_show_logo'))
+        cfg.cert_show_prize     = bool(request.form.get('cert_show_prize'))
+        try:
+            cfg.cert_name_y_pct  = float(request.form.get('cert_name_y_pct', 45.0))
+            cfg.cert_prize_y_pct = float(request.form.get('cert_prize_y_pct', 57.0))
+            cfg.cert_event_y_pct = float(request.form.get('cert_event_y_pct', 68.0))
+        except (TypeError, ValueError):
+            pass
+
+        saved_part = _save_upload('cert_participation_bg', 'cert_participation_bg')
+        if saved_part:
+            cfg.cert_participation_bg_image = saved_part
+            flash('Participation certificate background uploaded.', 'success')
+        if request.form.get('remove_participation_bg'):
+            cfg.cert_participation_bg_image = None
 
         def _save_upload(field, dest_filename):
             f = request.files.get(field)
@@ -160,11 +179,18 @@ def _cert_logo_path(cfg):
     return None
 
 
-def _make_cert(cfg, name, item_name, category, position_label):
+def _make_cert(cfg, name, item_name, category, position_label, participation=False):
     from app.pdf.certificate import generate_certificate
+    upload = current_app.config['UPLOAD_FOLDER']
     bg_path = None
-    if cfg and cfg.cert_bg_image:
-        bg_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cfg.cert_bg_image)
+    if participation:
+        # Use participation background if set, fall back to winner background
+        bg_file = (cfg.cert_participation_bg_image if cfg and cfg.cert_participation_bg_image
+                   else cfg.cert_bg_image if cfg else None)
+    else:
+        bg_file = cfg.cert_bg_image if cfg else None
+    if bg_file:
+        bg_path = os.path.join(upload, bg_file)
 
     return generate_certificate(
         event_name=cfg.event_name if cfg else 'Kalamela',
@@ -181,6 +207,11 @@ def _make_cert(cfg, name, item_name, category, position_label):
         name_colour=cfg.cert_name_colour if cfg else '#8b6914',
         cert_font=cfg.cert_font if cfg else None,
         cert_logo_path=_cert_logo_path(cfg),
+        show_logo=cfg.cert_show_logo if cfg is not None else True,
+        show_prize=(cfg.cert_show_prize if cfg is not None else True) if participation else True,
+        name_y_pct=cfg.cert_name_y_pct if cfg is not None else 45.0,
+        prize_y_pct=cfg.cert_prize_y_pct if cfg is not None else 57.0,
+        event_y_pct=cfg.cert_event_y_pct if cfg is not None else 68.0,
     )
 
 
@@ -344,6 +375,173 @@ def _send_social_email(cfg, recipient, entry, position, png_bytes, pdf_bytes=Non
     server.login(cfg.smtp_username, cfg.smtp_password or '')
     server.sendmail(from_addr, [recipient], msg.as_string())
     server.quit()
+
+
+def _send_participation_email(cfg, recipient, entry):
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.base import MIMEBase
+    from email.mime.text import MIMEText
+    from email import encoders
+    item_name  = entry.competition_item.name
+    event_name = cfg.event_name or 'Kalamela'
+    from_name  = cfg.smtp_from_name or event_name
+    from_addr  = cfg.smtp_from_email
+    subject    = f'Your Participation Certificate — {item_name} | {event_name}'
+
+    msg            = MIMEMultipart()
+    msg['From']    = f'{from_name} <{from_addr}>'
+    msg['To']      = recipient
+    msg['Subject'] = subject
+
+    body = (
+        f'Dear {entry.display_name},\n\n'
+        f'Thank you for participating in {item_name} '
+        f'({entry.competition_item.category}) at {event_name}!\n\n'
+        f'Please find your participation certificate attached.\n\n'
+        f'Best wishes,\n{from_name}'
+    )
+    msg.attach(MIMEText(body, 'plain'))
+
+    pdf = _make_cert(cfg, entry.display_name, item_name,
+                     entry.competition_item.category, 'Participated', participation=True)
+    pdf_part = MIMEBase('application', 'pdf')
+    pdf_part.set_payload(pdf)
+    encoders.encode_base64(pdf_part)
+    safe_name = f'participation_{entry.display_name}_{item_name}.pdf'.replace(' ', '_')
+    pdf_part.add_header('Content-Disposition', 'attachment', filename=safe_name)
+    msg.attach(pdf_part)
+
+    port = cfg.smtp_port or 587
+    if cfg.smtp_use_tls:
+        server = smtplib.SMTP(cfg.smtp_host, port, timeout=15)
+        server.ehlo(); server.starttls(); server.ehlo()
+    else:
+        server = smtplib.SMTP_SSL(cfg.smtp_host, port, timeout=15)
+    server.login(cfg.smtp_username, cfg.smtp_password or '')
+    server.sendmail(from_addr, [recipient], msg.as_string())
+    server.quit()
+
+
+def _participation_entries_for_item(item_id):
+    """Return entries for item_id that did not place 1st/2nd/3rd."""
+    from app.models import Entry
+    ranked = get_event_results(item_id)
+    placed_ids = {r['entry'].id for r in ranked if r['position'] <= 3}
+    all_entries = Entry.query.filter_by(item_id=item_id).all()
+    return [e for e in all_entries if e.id not in placed_ids]
+
+
+@certificates_bp.route('/participation/event/<int:item_id>')
+def participation_event_certificates(item_id):
+    item    = CompetitionItem.query.get_or_404(item_id)
+    cfg     = EventConfig.query.first()
+    entries = _participation_entries_for_item(item_id)
+
+    if not entries:
+        flash('No participation entries for this event.', 'warning')
+        return redirect(url_for('certificates.index'))
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, 'w') as zf:
+        for entry in entries:
+            pdf  = _make_cert(cfg, entry.display_name, item.name, item.category,
+                              'Participated', participation=True)
+            safe = f'participation_{entry.display_name}_{item.name}.pdf'.replace(' ', '_')
+            zf.writestr(safe, pdf)
+
+    zip_buf.seek(0)
+    return send_file(zip_buf, mimetype='application/zip', as_attachment=True,
+                     download_name=f'participation_{item.name}.zip'.replace(' ', '_'))
+
+
+@certificates_bp.route('/participation/single/<int:entry_id>')
+def single_participation_certificate(entry_id):
+    entry = Entry.query.get_or_404(entry_id)
+    cfg   = EventConfig.query.first()
+    item  = entry.competition_item
+    pdf   = _make_cert(cfg, entry.display_name, item.name, item.category,
+                       'Participated', participation=True)
+    filename = f'participation_{entry.display_name}_{item.name}.pdf'.replace(' ', '_')
+    return send_file(io.BytesIO(pdf), mimetype='application/pdf',
+                     as_attachment=False, download_name=filename)
+
+
+@certificates_bp.route('/participation/email/<int:entry_id>', methods=['POST'])
+def email_participation_certificate(entry_id):
+    entry = Entry.query.get_or_404(entry_id)
+    cfg   = EventConfig.query.first()
+    recipient = entry.participant.email if entry.participant else None
+
+    if not recipient:
+        flash('No email address on record for this participant.', 'warning')
+        return redirect(url_for('certificates.index'))
+
+    if not (cfg and cfg.smtp_host and cfg.smtp_username and cfg.smtp_from_email):
+        flash('SMTP not configured — go to Event Settings to set it up.', 'danger')
+        return redirect(url_for('certificates.index'))
+
+    try:
+        _send_participation_email(cfg, recipient, entry)
+        flash(f'Participation certificate emailed to {recipient}.', 'success')
+    except Exception as exc:
+        flash(f'Email failed: {exc}', 'danger')
+
+    return redirect(url_for('certificates.index'))
+
+
+@certificates_bp.route('/participation/email/all', methods=['POST'])
+def email_all_participation_certificates():
+    cfg   = EventConfig.query.first()
+    items = CompetitionItem.query.all()
+
+    if not (cfg and cfg.smtp_host and cfg.smtp_username and cfg.smtp_from_email):
+        flash('SMTP not configured — go to Event Settings to set it up.', 'danger')
+        return redirect(url_for('certificates.index'))
+
+    sent = skipped = failed = 0
+    for item in items:
+        for entry in _participation_entries_for_item(item.id):
+            recipient = entry.participant.email if entry.participant else None
+            if not recipient:
+                skipped += 1
+                continue
+            try:
+                _send_participation_email(cfg, recipient, entry)
+                sent += 1
+            except Exception:
+                failed += 1
+
+    parts = [f'{sent} sent']
+    if skipped: parts.append(f'{skipped} skipped (no email)')
+    if failed:  parts.append(f'{failed} failed')
+    flash('Participation certificates: ' + ', '.join(parts) + '.', 'success' if not failed else 'warning')
+    return redirect(url_for('certificates.index'))
+
+
+@certificates_bp.route('/participation/all')
+def participation_all_certificates():
+    cfg   = EventConfig.query.first()
+    items = CompetitionItem.query.all()
+
+    zip_buf = io.BytesIO()
+    count = 0
+    with zipfile.ZipFile(zip_buf, 'w') as zf:
+        for item in items:
+            entries = _participation_entries_for_item(item.id)
+            for entry in entries:
+                pdf  = _make_cert(cfg, entry.display_name, item.name, item.category,
+                                  'Participated', participation=True)
+                safe = f'participation_{entry.display_name}_{item.name}.pdf'.replace(' ', '_')
+                zf.writestr(safe, pdf)
+                count += 1
+
+    if count == 0:
+        flash('No participation entries found.', 'warning')
+        return redirect(url_for('certificates.index'))
+
+    zip_buf.seek(0)
+    return send_file(zip_buf, mimetype='application/zip', as_attachment=True,
+                     download_name='participation_certificates.zip')
 
 
 @certificates_bp.route('/awards')

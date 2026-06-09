@@ -45,10 +45,42 @@
           </div>
           {% endif %}
           <input type="file" name="cert_logo" class="form-control" accept=".png,.jpg,.jpeg">
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" name="cert_show_logo" id="certShowLogo"
+                   value="1" onchange="updatePreview()"
+                   {{ 'checked' if (cfg is none or cfg.cert_show_logo) }}>
+            <label class="form-check-label" for="certShowLogo">Show logo on certificate</label>
+          </div>
         </div>
 
         <div class="mb-3">
-          <label class="form-label fw-semibold">Background / Banner Image</label>
+          <label class="form-label fw-semibold">Participation Certificate Background</label>
+          <div class="form-text mb-1">
+            Used for participants who did not win a prize.
+            If not set, falls back to the winner certificate background.
+          </div>
+          {% if cfg and cfg.cert_participation_bg_image %}
+          <div class="mb-2 d-flex align-items-center gap-3">
+            <img src="{{ url_for('main.uploads', filename=cfg.cert_participation_bg_image) }}"
+                 alt="" style="max-height:56px;max-width:160px;object-fit:cover;border-radius:4px">
+            <label class="form-check-label text-danger small">
+              <input type="checkbox" name="remove_participation_bg" value="1" class="form-check-input me-1">
+              Remove image
+            </label>
+          </div>
+          {% endif %}
+          <input type="file" name="cert_participation_bg" class="form-control" accept=".png,.jpg,.jpeg">
+          <div class="form-text">PNG or JPG — same size as winner background (A4 landscape).</div>
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" name="cert_show_prize" id="certShowPrize"
+                   value="1"
+                   {{ 'checked' if (cfg is none or cfg.cert_show_prize) }}>
+            <label class="form-check-label" for="certShowPrize">Show prize line on participation certificate</label>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Main Certificate Background</label>
           {% if cfg and cfg.cert_bg_image %}
           <div class="mb-2 d-flex align-items-center gap-3">
             <img src="{{ url_for('main.uploads', filename=cfg.cert_bg_image) }}"
@@ -61,6 +93,46 @@
           {% endif %}
           <input type="file" name="bg_image" class="form-control" accept=".png,.jpg,.jpeg">
           <div class="form-text">PNG or JPG — A4 landscape. Also used as social cert fallback background.</div>
+        </div>
+
+        <div class="mb-3 p-3 border rounded bg-light">
+          <label class="form-label fw-semibold">
+            <i class="bi bi-arrows-move me-1"></i>Text Positions
+            <span class="text-muted fw-normal small ms-1">(used when background image is set)</span>
+          </label>
+          <div class="form-text mb-2">
+            Enter a number from <strong>0</strong> (top of page) to <strong>100</strong> (bottom).
+            Adjust until the text lands on the right area of your template.
+          </div>
+          <div class="row g-2">
+            <div class="col-4">
+              <label class="form-text d-block mb-1">Name line</label>
+              <div class="input-group input-group-sm">
+                <input type="number" name="cert_name_y_pct" class="form-control" id="nameYPct"
+                       min="1" max="99" step="0.1" oninput="updatePreview()"
+                       value="{{ '%.1f' | format(cfg.cert_name_y_pct) if cfg and cfg.cert_name_y_pct else '45.0' }}">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="col-4">
+              <label class="form-text d-block mb-1">Prize line</label>
+              <div class="input-group input-group-sm">
+                <input type="number" name="cert_prize_y_pct" class="form-control" id="prizeYPct"
+                       min="1" max="99" step="0.1" oninput="updatePreview()"
+                       value="{{ '%.1f' | format(cfg.cert_prize_y_pct) if cfg and cfg.cert_prize_y_pct else '57.0' }}">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="col-4">
+              <label class="form-text d-block mb-1">Event line</label>
+              <div class="input-group input-group-sm">
+                <input type="number" name="cert_event_y_pct" class="form-control" id="eventYPct"
+                       min="1" max="99" step="0.1" oninput="updatePreview()"
+                       value="{{ '%.1f' | format(cfg.cert_event_y_pct) if cfg and cfg.cert_event_y_pct else '68.0' }}">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="mb-3">
@@ -127,51 +199,81 @@
   <div class="col-md-7">
     <div class="card p-4 bg-light">
       <h6 class="fw-semibold mb-3">Preview <span class="text-muted small fw-normal">(approximate)</span></h6>
-      <div id="certPreview" class="border rounded p-3 text-center" style="
-          position:relative;overflow:hidden;
-          {% if cfg and cfg.cert_bg_image %}
+      {% set has_bg = cfg and cfg.cert_bg_image %}
+      <div id="certPreview" class="border rounded text-center" style="
+          position:relative;overflow:hidden;min-height:220px;
+          {% if has_bg %}
             background-image:url('{{ url_for('main.uploads', filename=cfg.cert_bg_image) }}');
             background-size:cover;background-position:center;
           {% else %}
-            background-color:#f5f0e8;
+            background-color:#f5f0e8;padding:1rem;
           {% endif %}">
-        {% if not (cfg and cfg.cert_bg_image) %}
+
+        {% if not has_bg %}
+        {# Full layout preview #}
         <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
              alt="" aria-hidden="true"
              style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
                     width:55%;opacity:0.07;pointer-events:none;z-index:0;">
-        {% endif %}
-        <div id="previewContent" style="position:relative;z-index:1;
-            {% if cfg and cfg.cert_bg_image %}background:rgba(255,255,255,0.12);border-radius:6px;padding:0.5rem;{% endif %}">
-          {% if cfg and cfg.cert_logo %}
-          <img src="{{ url_for('main.uploads', filename=cfg.cert_logo) }}"
-               alt="Logo" style="height:48px;width:auto;object-fit:contain;margin-bottom:6px">
-          {% elif cfg and cfg.welcome_logo %}
-          <img src="{{ url_for('main.uploads', filename=cfg.welcome_logo) }}"
-               alt="Logo" style="height:48px;width:auto;object-fit:contain;margin-bottom:6px">
-          {% else %}
-          <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
-               alt="LKC" style="height:48px;width:auto;object-fit:contain;margin-bottom:6px">
-          {% endif %}
-          <div id="pHeading" class="fw-bold mb-2" style="font-size:1rem;">
+        <div id="previewContent" style="position:relative;z-index:1;">
+          <div id="pLogoWrap" style="margin-bottom:4px;">
+            {% if cfg and cfg.cert_logo %}
+            <img src="{{ url_for('main.uploads', filename=cfg.cert_logo) }}"
+                 alt="Logo" style="height:40px;width:auto;object-fit:contain;">
+            {% elif cfg and cfg.welcome_logo %}
+            <img src="{{ url_for('main.uploads', filename=cfg.welcome_logo) }}"
+                 alt="Logo" style="height:40px;width:auto;object-fit:contain;">
+            {% else %}
+            <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
+                 alt="LKC" style="height:40px;width:auto;object-fit:contain;">
+            {% endif %}
+          </div>
+          <div id="pHeading" class="fw-bold mb-1" style="font-size:0.9rem;">
             {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela' }}
           </div>
-          <h4 id="pTitle" class="fw-bold">{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}</h4>
-          <hr id="pHr" style="border-width:2px;">
-          <p id="pBody1" class="mb-1">This is to certify that</p>
-          <h5 id="pName" class="fw-bold">Participant Name</h5>
-          <p id="pBody2" class="mb-1">has achieved <strong>1st Prize</strong> in</p>
-          <h6 id="pItem" class="fw-bold">Folk Dance — Junior</h6>
-          <p id="pBody3" class="small">
-            at {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela' }}
+          <h5 id="pTitle" class="fw-bold mb-1">{{ cfg.cert_title_text if cfg else 'Certificate of Achievement' }}</h5>
+          <hr id="pHr" style="border-width:2px;margin:4px 0;">
+          <p id="pBody1" class="mb-1 small">This is to certify that</p>
+          <h6 id="pName" class="fw-bold mb-1">Participant Name</h6>
+          <p id="pBody2" class="mb-1 small">has achieved <strong>1st Prize</strong> in</p>
+          <p id="pItem" class="fw-bold mb-1 small">Folk Dance — Junior</p>
+          <p id="pBody3" class="small text-muted">
+            at {{ cfg.event_name if cfg else 'LKC Kalamela' }}
             on {{ cfg.event_date.strftime('%d %B %Y') if cfg and cfg.event_date else '01 May 2026' }}
           </p>
-          <div class="d-flex justify-content-around mt-3 text-muted small">
-            <div>______________<br>President</div>
-            <div>______________<br>Secretary</div>
+          <div class="d-flex justify-content-around mt-2 text-muted" style="font-size:0.7rem;">
+            <div>__________<br>President</div>
+            <div>__________<br>Secretary</div>
           </div>
         </div>
+
+        {% else %}
+        {# Background-image mode: show positioned text markers #}
+        <div id="previewContent" style="position:relative;width:100%;height:100%;min-height:220px;">
+          <div id="pNameMarker" style="position:absolute;left:0;right:0;text-align:center;
+               transform:translateY(-50%);font-weight:bold;font-size:1rem;
+               text-shadow:0 1px 3px rgba(0,0,0,0.6);">
+            Participant Name
+          </div>
+          <div id="pPrizeMarker" style="position:absolute;left:0;right:0;text-align:center;
+               transform:translateY(-50%);font-weight:bold;font-size:0.9rem;
+               text-shadow:0 1px 3px rgba(0,0,0,0.6);">
+            1st Prize
+          </div>
+          <div id="pEventMarker" style="position:absolute;left:0;right:0;text-align:center;
+               transform:translateY(-50%);font-weight:bold;font-size:0.85rem;
+               text-shadow:0 1px 3px rgba(0,0,0,0.6);">
+            Folk Dance
+          </div>
+        </div>
+        {% endif %}
+
       </div>
+      {% if has_bg %}
+      <div class="form-text mt-1"><i class="bi bi-info-circle me-1"></i>
+        Preview shows approximate text positions. Adjust the % values above and save to fine-tune.
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>
@@ -179,27 +281,54 @@
 
 {% block extra_js %}
 <script>
+const HAS_BG = {{ 'true' if (cfg and cfg.cert_bg_image) else 'false' }};
+
 function updatePreview() {
-  const heading = document.getElementById('colHeading').value;
-  const title   = document.getElementById('colTitle').value;
   const name    = document.getElementById('colName').value;
+  const title   = document.getElementById('colTitle').value;
   const body    = document.getElementById('colBody').value;
   const fontSel = document.getElementById('certFont');
   const css     = fontSel.options[fontSel.selectedIndex].dataset.css || 'inherit';
-  const titleTxt = document.getElementById('previewTitle').value;
+  const showLogo = document.getElementById('certShowLogo').checked;
 
   const content = document.getElementById('previewContent');
-  content.style.fontFamily = css;
+  if (content) content.style.fontFamily = css;
 
-  document.getElementById('pHeading').style.color = heading;
-  document.getElementById('pHr').style.borderColor = heading;
-  document.getElementById('pTitle').style.color   = title;
-  document.getElementById('pTitle').textContent   = titleTxt || 'Certificate of Achievement';
-  document.getElementById('pItem').style.color    = title;
-  document.getElementById('pName').style.color    = name;
-  ['pBody1','pBody2','pBody3'].forEach(id => {
-    document.getElementById(id).style.color = body;
-  });
+  if (HAS_BG) {
+    // Background-image mode: move positioned markers
+    const nameY  = parseFloat(document.getElementById('nameYPct').value)  || 45;
+    const prizeY = parseFloat(document.getElementById('prizeYPct').value) || 57;
+    const eventY = parseFloat(document.getElementById('eventYPct').value) || 68;
+
+    const nm = document.getElementById('pNameMarker');
+    const pm = document.getElementById('pPrizeMarker');
+    const em = document.getElementById('pEventMarker');
+    if (nm) { nm.style.top = nameY  + '%'; nm.style.color = name; }
+    if (pm) { pm.style.top = prizeY + '%'; pm.style.color = title; }
+    if (em) { em.style.top = eventY + '%'; em.style.color = body; }
+  } else {
+    // Full layout mode
+    const heading  = document.getElementById('colHeading').value;
+    const titleTxt = document.getElementById('previewTitle').value;
+
+    const logoWrap = document.getElementById('pLogoWrap');
+    if (logoWrap) logoWrap.style.display = showLogo ? '' : 'none';
+
+    const h = document.getElementById('pHeading');
+    const t = document.getElementById('pTitle');
+    const hr = document.getElementById('pHr');
+    const n = document.getElementById('pName');
+    const it = document.getElementById('pItem');
+    if (h)  h.style.color = heading;
+    if (hr) hr.style.borderColor = heading;
+    if (t)  { t.style.color = title; t.textContent = titleTxt || 'Certificate of Achievement'; }
+    if (it) it.style.color = title;
+    if (n)  n.style.color = name;
+    ['pBody1','pBody2','pBody3'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.color = body;
+    });
+  }
 }
 updatePreview();
 </script>

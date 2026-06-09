@@ -159,6 +159,12 @@ def _apply_migrations():
             ('smtp_from_email', 'ALTER TABLE event_config ADD COLUMN smtp_from_email VARCHAR(200)'),
             ('smtp_use_tls',         'ALTER TABLE event_config ADD COLUMN smtp_use_tls INTEGER DEFAULT 1'),
             ('registration_closed',  'ALTER TABLE event_config ADD COLUMN registration_closed INTEGER DEFAULT 0'),
+            ('cert_show_logo',   'ALTER TABLE event_config ADD COLUMN cert_show_logo INTEGER DEFAULT 1'),
+            ('cert_show_prize',  'ALTER TABLE event_config ADD COLUMN cert_show_prize INTEGER DEFAULT 1'),
+            ('cert_name_y_pct',  'ALTER TABLE event_config ADD COLUMN cert_name_y_pct REAL DEFAULT 45.0'),
+            ('cert_prize_y_pct', 'ALTER TABLE event_config ADD COLUMN cert_prize_y_pct REAL DEFAULT 57.0'),
+            ('cert_event_y_pct', 'ALTER TABLE event_config ADD COLUMN cert_event_y_pct REAL DEFAULT 68.0'),
+            ('cert_participation_bg_image', 'ALTER TABLE event_config ADD COLUMN cert_participation_bg_image VARCHAR(300)'),
         ]:
             if col not in existing:
                 db.session.execute(text(ddl))

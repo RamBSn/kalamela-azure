@@ -13,6 +13,17 @@
     <a href="{{ url_for('certificates.award_certificates') }}" class="btn btn-success">
       <i class="bi bi-trophy me-1"></i>All Award Certificates
     </a>
+    <a href="{{ url_for('certificates.participation_all_certificates') }}" class="btn btn-outline-success">
+      <i class="bi bi-patch-check me-1"></i>All Participation Certificates
+    </a>
+    {% if smtp_ok %}
+    <form method="post" action="{{ url_for('certificates.email_all_participation_certificates') }}"
+          onsubmit="return confirm('Email participation certificates to all participants with an email address?')">
+      <button type="submit" class="btn btn-outline-primary">
+        <i class="bi bi-envelope me-1"></i>Email All Participation Certificates
+      </button>
+    </form>
+    {% endif %}
   </div>
 </div>
 
@@ -38,8 +49,8 @@
 <h5 class="mt-4 mb-3">Event Certificates</h5>
 {% if items %}
 {% set cat_order = ['Kids','Sub-Junior','Junior','Senior','Super Senior','Common'] %}
-{% set pos_labels = {1: '1st Prize', 2: '2nd Prize', 3: '3rd Prize'} %}
-{% set pos_social  = {1: 'Winner',   2: 'Runner Up', 3: 'Second Runner Up'} %}
+{% set pos_labels = {1: 'Winner', 2: 'First Runner Up', 3: 'Second Runner Up'} %}
+{% set pos_social  = {1: 'Winner', 2: 'First Runner Up', 3: 'Second Runner Up'} %}
 {% set pos_badge   = {1: 'bg-warning text-dark', 2: 'bg-secondary', 3: 'bg-secondary'} %}
 
 {% for cat in cat_order %}
@@ -53,10 +64,16 @@
         <span class="fw-semibold">{{ item.name }}</span>
         <span class="text-muted ms-2 small">{{ item.category }} &middot; {{ item.item_type }}</span>
       </div>
-      <a href="{{ url_for('certificates.event_certificates', item_id=item.id) }}"
-         class="btn btn-outline-primary btn-sm">
-        <i class="bi bi-file-earmark-pdf me-1"></i>ZIP All PDFs
-      </a>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('certificates.event_certificates', item_id=item.id) }}"
+           class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-file-earmark-pdf me-1"></i>ZIP Winners
+        </a>
+        <a href="{{ url_for('certificates.participation_event_certificates', item_id=item.id) }}"
+           class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-patch-check me-1"></i>ZIP Participation
+        </a>
+      </div>
     </div>
 
     {% set ranked = item_ranked.get(item.id, []) %}
@@ -145,6 +162,64 @@
     {% else %}
     <div class="card-body py-2 text-muted small">No scored entries yet.</div>
     {% endif %}
+
+    {# Participation entries #}
+    {% set part_entries = item_participation.get(item.id, []) %}
+    {% if part_entries %}
+    <div class="card-footer p-0">
+      <button class="btn btn-link btn-sm text-muted w-100 text-start px-3 py-2"
+              type="button" data-bs-toggle="collapse"
+              data-bs-target="#part-{{ item.id }}" aria-expanded="false">
+        <i class="bi bi-patch-check me-1"></i>
+        {{ part_entries | length }} participation
+        entr{{ 'y' if part_entries | length == 1 else 'ies' }}
+        <i class="bi bi-chevron-down ms-1" style="font-size:0.75rem;"></i>
+      </button>
+      <div class="collapse" id="part-{{ item.id }}">
+        <table class="table table-sm mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Chest #</th>
+              <th class="text-end">PDF Cert</th>
+              {% if smtp_ok %}<th class="text-end">Email</th>{% endif %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in part_entries %}
+            <tr>
+              <td>{{ entry.display_name }}</td>
+              <td>#{{ entry.chest_number }}</td>
+              <td class="text-end">
+                <a href="{{ url_for('certificates.single_participation_certificate', entry_id=entry.id) }}"
+                   class="btn btn-sm btn-outline-secondary" target="_blank">
+                  <i class="bi bi-file-earmark-pdf"></i>
+                </a>
+              </td>
+              {% if smtp_ok %}
+              <td class="text-end">
+                {% if entry.participant and entry.participant.email %}
+                <form method="post"
+                      action="{{ url_for('certificates.email_participation_certificate', entry_id=entry.id) }}"
+                      onsubmit="return confirm('Email participation certificate to {{ entry.participant.email }}?')">
+                  <button type="submit" class="btn btn-sm btn-outline-success"
+                          title="Email to {{ entry.participant.email }}">
+                    <i class="bi bi-envelope"></i>
+                  </button>
+                </form>
+                {% else %}
+                <span class="text-muted small" title="No email on record">—</span>
+                {% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
   </div>
   {% endfor %}
   {% endif %}

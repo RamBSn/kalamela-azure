@@ -44,6 +44,11 @@ def generate_certificate(
     name_colour: str = '#8b6914',
     cert_font: str = None,
     cert_logo_path: str = None,
+    show_logo: bool = True,
+    show_prize: bool = True,
+    name_y_pct: float = 45.0,
+    prize_y_pct: float = 57.0,
+    event_y_pct: float = 68.0,
 ) -> bytes:
     try:
         from reportlab.lib.pagesizes import A4, landscape
@@ -91,64 +96,81 @@ def generate_certificate(
     title_col   = _hex(title_colour,   '#1a1a2e')
     name_col    = _hex(name_colour,    '#8b6914')
 
-    # ── Logo ──────────────────────────────────────────────────────────────────
-    # Use cert_logo_path if provided, fall back to bundled lkc-logo.jpeg
-    _logo = cert_logo_path if (cert_logo_path and os.path.exists(cert_logo_path)) else _LOGO_PATH
-    if os.path.exists(_logo):
-        logo_h = 24 * mm
-        c.drawImage(_logo,
-                    (page_w - logo_h) / 2, page_h - 48 * mm,
-                    width=logo_h, height=logo_h,
-                    preserveAspectRatio=True, mask='auto')
+    using_bg = bool(bg_image_path and os.path.exists(bg_image_path))
 
-    # ── Event name ────────────────────────────────────────────────────────────
-    c.setFillColor(heading_col)
-    c.setFont(bold_font, 20)
-    c.drawCentredString(page_w / 2, page_h - 60 * mm, event_name)
+    # ── Logo (optional) ───────────────────────────────────────────────────────
+    if show_logo:
+        _logo = cert_logo_path if (cert_logo_path and os.path.exists(cert_logo_path)) else _LOGO_PATH
+        if os.path.exists(_logo):
+            logo_h = 24 * mm
+            c.drawImage(_logo,
+                        (page_w - logo_h) / 2, page_h - 48 * mm,
+                        width=logo_h, height=logo_h,
+                        preserveAspectRatio=True, mask='auto')
 
-    # ── Certificate title ─────────────────────────────────────────────────────
-    c.setFont(bold_font, 30)
-    c.setFillColor(title_col)
-    c.drawCentredString(page_w / 2, page_h - 76 * mm, title_text)
+    if using_bg:
+        # ── Background-image mode: stamp Name / Prize / Event only ────────────
+        def _y(pct):
+            return page_h * (1.0 - pct / 100.0)
 
-    # ── Decorative line ───────────────────────────────────────────────────────
-    c.setStrokeColor(HexColor('#8b6914'))
-    c.setLineWidth(1.5)
-    c.line(60 * mm, page_h - 82 * mm, page_w - 60 * mm, page_h - 82 * mm)
+        c.setFont(bold_font, 24)
+        c.setFillColor(name_col)
+        c.drawCentredString(page_w / 2, _y(name_y_pct), participant_name)
 
-    # ── Body text ─────────────────────────────────────────────────────────────
-    body_y = page_h - 102 * mm
-    c.setFont(base_font, 13)
-    c.setFillColor(text_colour)
-    c.drawCentredString(page_w / 2, body_y, 'This is to certify that')
+        if show_prize:
+            c.setFont(bold_font, 20)
+            c.setFillColor(title_col)
+            c.drawCentredString(page_w / 2, _y(prize_y_pct), position)
 
-    c.setFont(bold_font, 22)
-    c.setFillColor(name_col)
-    c.drawCentredString(page_w / 2, body_y - 14 * mm, participant_name)
+        c.setFont(bold_font, 18)
+        c.setFillColor(text_colour)
+        c.drawCentredString(page_w / 2, _y(event_y_pct), item_name)
 
-    c.setFont(base_font, 13)
-    c.setFillColor(text_colour)
-    c.drawCentredString(page_w / 2, body_y - 26 * mm, f'has achieved  {position}  in')
+    else:
+        # ── Generated-layout mode: full certificate text ──────────────────────
+        c.setFillColor(heading_col)
+        c.setFont(bold_font, 20)
+        c.drawCentredString(page_w / 2, page_h - 60 * mm, event_name)
 
-    c.setFont(bold_font, 16)
-    c.setFillColor(title_col)
-    c.drawCentredString(page_w / 2, body_y - 38 * mm, f'{item_name}  —  {category}')
+        c.setFont(bold_font, 30)
+        c.setFillColor(title_col)
+        c.drawCentredString(page_w / 2, page_h - 76 * mm, title_text)
 
-    c.setFont(base_font, 12)
-    c.setFillColor(text_colour)
-    c.drawCentredString(page_w / 2, body_y - 52 * mm,
-                        f'at  {event_name}  on  {event_date}')
+        c.setStrokeColor(HexColor('#8b6914'))
+        c.setLineWidth(1.5)
+        c.line(60 * mm, page_h - 82 * mm, page_w - 60 * mm, page_h - 82 * mm)
 
-    # ── Signature lines ───────────────────────────────────────────────────────
-    sig_y = 30 * mm
-    c.setStrokeColor(HexColor('#8b6914'))
-    c.setLineWidth(1)
-    c.line(60 * mm, sig_y, 120 * mm, sig_y)
-    c.line(page_w - 120 * mm, sig_y, page_w - 60 * mm, sig_y)
-    c.setFont('Helvetica', 9)
-    c.setFillColor(HexColor('#555555'))
-    c.drawCentredString(90 * mm, sig_y - 5 * mm, 'President')
-    c.drawCentredString(page_w - 90 * mm, sig_y - 5 * mm, 'Secretary')
+        body_y = page_h - 102 * mm
+        c.setFont(base_font, 13)
+        c.setFillColor(text_colour)
+        c.drawCentredString(page_w / 2, body_y, 'This is to certify that')
+
+        c.setFont(bold_font, 22)
+        c.setFillColor(name_col)
+        c.drawCentredString(page_w / 2, body_y - 14 * mm, participant_name)
+
+        c.setFont(base_font, 13)
+        c.setFillColor(text_colour)
+        c.drawCentredString(page_w / 2, body_y - 26 * mm, f'has achieved  {position}  in')
+
+        c.setFont(bold_font, 16)
+        c.setFillColor(title_col)
+        c.drawCentredString(page_w / 2, body_y - 38 * mm, f'{item_name}  —  {category}')
+
+        c.setFont(base_font, 12)
+        c.setFillColor(text_colour)
+        c.drawCentredString(page_w / 2, body_y - 52 * mm,
+                            f'at  {event_name}  on  {event_date}')
+
+        sig_y = 30 * mm
+        c.setStrokeColor(HexColor('#8b6914'))
+        c.setLineWidth(1)
+        c.line(60 * mm, sig_y, 120 * mm, sig_y)
+        c.line(page_w - 120 * mm, sig_y, page_w - 60 * mm, sig_y)
+        c.setFont('Helvetica', 9)
+        c.setFillColor(HexColor('#555555'))
+        c.drawCentredString(90 * mm, sig_y - 5 * mm, 'President')
+        c.drawCentredString(page_w - 90 * mm, sig_y - 5 * mm, 'Secretary')
 
     c.save()
     return buf.getvalue()
