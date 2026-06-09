@@ -171,6 +171,13 @@ def _apply_migrations():
                 db.session.execute(text(ddl))
                 db.session.commit()
 
+    # Data migration: remove orphaned entries (participant deleted without cascade)
+    if 'entry' in tables:
+        db.session.execute(text(
+            "DELETE FROM entry WHERE participant_id IS NULL AND group_id IS NULL"
+        ))
+        db.session.commit()
+
     # Data migration: rename legacy event names to the correct LKC full name
     if 'event_config' in tables:
         db.session.execute(text(

@@ -132,7 +132,8 @@ class Participant(db.Model):
     parent_name = db.Column(db.String(200), nullable=True)
 
     individual_entries = db.relationship('Entry', backref='participant', lazy=True,
-                                         foreign_keys='Entry.participant_id')
+                                         foreign_keys='Entry.participant_id',
+                                         cascade='all, delete-orphan')
     group_memberships = db.relationship('GroupEntry', secondary=group_members,
                                         back_populates='members')
 
