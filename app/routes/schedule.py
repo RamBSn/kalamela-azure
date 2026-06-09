@@ -248,8 +248,9 @@ def chest_numbers():
     cfg = EventConfig.query.first()
 
     include_registered = request.args.get('registered', '1') == '1'
-    range_from = request.args.get('from', type=int, default=0)
-    range_to   = request.args.get('to',   type=int, default=0)
+    range_from = request.args.get('from',      type=int, default=0)
+    range_to   = request.args.get('to',         type=int, default=0)
+    font_size  = request.args.get('font_size',  type=int, default=0) or None
 
     # Build name lookup for registered numbers
     participants = {p.chest_number: p.full_name
@@ -283,6 +284,7 @@ def chest_numbers():
         include_registered=include_registered,
         range_from=range_from or '',
         range_to=range_to or '',
+        font_size=font_size or '',
         cfg=cfg,
     )
 
@@ -290,8 +292,9 @@ def chest_numbers():
 @schedule_bp.route('/chest-numbers/pdf')
 def chest_numbers_pdf():
     include_registered = request.args.get('registered', '1') == '1'
-    range_from = request.args.get('from', type=int, default=0)
-    range_to   = request.args.get('to',   type=int, default=0)
+    range_from = request.args.get('from',      type=int, default=0)
+    range_to   = request.args.get('to',         type=int, default=0)
+    font_size  = request.args.get('font_size',  type=int, default=0) or None
 
     cfg = EventConfig.query.first()
     event_name = cfg.event_name if cfg else 'Kalamela'
@@ -318,7 +321,7 @@ def chest_numbers_pdf():
     numbers.sort(key=lambda x: x['number'])
 
     from app.pdf.chest_numbers import generate_chest_numbers_pdf
-    pdf_bytes = generate_chest_numbers_pdf(numbers, event_name)
+    pdf_bytes = generate_chest_numbers_pdf(numbers, event_name, font_size=font_size)
 
     response = make_response(pdf_bytes)
     response.headers['Content-Type'] = 'application/pdf'

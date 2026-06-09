@@ -16,7 +16,7 @@ def _auto_font_size(c, text, font_name, max_w, max_h, max_size=220, min_size=60)
     return min_size
 
 
-def _draw_card(c, number_info, event_name, x, y, w, h):
+def _draw_card(c, number_info, event_name, x, y, w, h, font_size_override=None):
     """Draw one chest-number card. (x, y) is the bottom-left corner."""
     padding_side = 8 * mm
     num_str = str(number_info['number'])
@@ -45,13 +45,16 @@ def _draw_card(c, number_info, event_name, x, y, w, h):
     num_zone_h = h - reserved_top - reserved_bottom
     num_zone_w = w - 2 * padding_side
 
-    font_size = _auto_font_size(
-        c, num_str, 'Helvetica-Bold',
-        max_w=num_zone_w,
-        max_h=num_zone_h,
-        max_size=220,
-        min_size=60,
-    )
+    if font_size_override:
+        font_size = font_size_override
+    else:
+        font_size = _auto_font_size(
+            c, num_str, 'Helvetica-Bold',
+            max_w=num_zone_w,
+            max_h=num_zone_h,
+            max_size=220,
+            min_size=60,
+        )
 
     c.setFont('Helvetica-Bold', font_size)
     # Dark navy for registered; grey for extra/unregistered
@@ -76,7 +79,8 @@ def _draw_divider(c, x_start, y, x_end):
     c.setDash()   # reset
 
 
-def generate_chest_numbers_pdf(numbers: list, event_name: str) -> bytes:
+def generate_chest_numbers_pdf(numbers: list, event_name: str,
+                               font_size: int = None) -> bytes:
     """
     numbers: list of {'number': int, 'name': str, 'registered': bool}
     Returns bytes of a PDF with 2 chest-number cards per A4 page.
@@ -95,14 +99,16 @@ def generate_chest_numbers_pdf(numbers: list, event_name: str) -> bytes:
     while i < len(numbers):
         # ── Top card ─────────────────────────────────────────────────────────
         top_y = margin + card_h
-        _draw_card(c, numbers[i], event_name, margin, top_y, card_w, card_h)
+        _draw_card(c, numbers[i], event_name, margin, top_y, card_w, card_h,
+                   font_size_override=font_size)
 
         # ── Dashed divider ────────────────────────────────────────────────────
         _draw_divider(c, margin, margin + card_h, page_w - margin)
 
         # ── Bottom card (if available) ────────────────────────────────────────
         if i + 1 < len(numbers):
-            _draw_card(c, numbers[i + 1], event_name, margin, margin, card_w, card_h)
+            _draw_card(c, numbers[i + 1], event_name, margin, margin, card_w, card_h,
+                       font_size_override=font_size)
 
         i += 2
 

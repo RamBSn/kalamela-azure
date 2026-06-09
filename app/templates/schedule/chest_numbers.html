@@ -32,7 +32,7 @@
 }
 
 .chest-card .card-number {
-  font-size: 90px;
+  font-size: {{ (font_size | string + 'pt') if font_size else '90px' }};
   font-weight: 900;
   line-height: 1;
   color: #1a1a2e;
@@ -104,7 +104,7 @@
   .page-pair { page-break-after: always; }
   .page-pair:last-child { page-break-after: avoid; }
 
-  .chest-card .card-number { font-size: 200px; }
+  .chest-card .card-number { font-size: {{ (font_size | string + 'pt') if font_size else '200px' }}; }
   .chest-card.extra .card-number { color: #333; }
 }
 </style>
@@ -118,9 +118,7 @@
     <h2><i class="bi bi-123 me-2"></i>Print Chest Numbers</h2>
     <div class="d-flex gap-2">
       {% if numbers %}
-      <a href="{{ url_for('schedule.chest_numbers_pdf',
-                          registered=('1' if include_registered else '0'),
-                          **({'from': range_from, 'to': range_to} if range_from and range_to else {})) }}"
+      <a href="{{ url_for('schedule.chest_numbers_pdf') }}?registered={{ '1' if include_registered else '0' }}{% if range_from and range_to %}&from={{ range_from }}&to={{ range_to }}{% endif %}{% if font_size %}&font_size={{ font_size }}{% endif %}"
          class="btn btn-success" target="_blank">
         <i class="bi bi-file-earmark-pdf-fill me-1"></i>Download PDF
       </a>
@@ -160,6 +158,17 @@
                  placeholder="To" min="1" value="{{ range_to }}">
         </div>
         <div class="form-text">Prints extra numbers not yet assigned to a participant.</div>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Number font size</label>
+        <div class="input-group">
+          <input type="number" name="font_size" class="form-control"
+                 placeholder="Auto" min="40" max="400" step="10"
+                 value="{{ font_size }}">
+          <span class="input-group-text">pt</span>
+        </div>
+        <div class="form-text">Leave blank to auto-fit. Affects both Print and PDF.</div>
       </div>
 
       <div class="col-md-2">
