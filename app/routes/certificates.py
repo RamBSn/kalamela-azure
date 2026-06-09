@@ -81,19 +81,14 @@ def template_setup():
         except (TypeError, ValueError):
             pass
 
-        saved_part = _save_upload('cert_participation_bg', 'cert_participation_bg')
-        if saved_part:
-            cfg.cert_participation_bg_image = saved_part
-            flash('Participation certificate background uploaded.', 'success')
-        if request.form.get('remove_participation_bg'):
-            cfg.cert_participation_bg_image = None
-
         def _save_upload(field, dest_filename):
             f = request.files.get(field)
             if f and f.filename and allowed_file(f.filename):
                 ext  = f.filename.rsplit('.', 1)[1].lower()
                 name = secure_filename(f'{dest_filename}.{ext}')
-                f.save(os.path.join(current_app.config['UPLOAD_FOLDER'], name))
+                folder = current_app.config['UPLOAD_FOLDER']
+                os.makedirs(folder, exist_ok=True)
+                f.save(os.path.join(folder, name))
                 return name
             return None
 
@@ -110,6 +105,13 @@ def template_setup():
             flash('Certificate logo uploaded.', 'success')
         if request.form.get('remove_cert_logo'):
             cfg.cert_logo = None
+
+        saved_part = _save_upload('cert_participation_bg', 'cert_participation_bg')
+        if saved_part:
+            cfg.cert_participation_bg_image = saved_part
+            flash('Participation certificate background uploaded.', 'success')
+        if request.form.get('remove_participation_bg'):
+            cfg.cert_participation_bg_image = None
 
         db.session.commit()
         flash('Certificate template saved.', 'success')
@@ -144,7 +146,9 @@ def social_template():
             file = request.files['social_bg_image']
             if file and file.filename and allowed_file(file.filename):
                 filename = secure_filename('social_background.' + file.filename.rsplit('.', 1)[1].lower())
-                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                folder = current_app.config['UPLOAD_FOLDER']
+                os.makedirs(folder, exist_ok=True)
+                file.save(os.path.join(folder, filename))
                 cfg.social_cert_bg_image = filename
                 flash('Social background image uploaded.', 'success')
 

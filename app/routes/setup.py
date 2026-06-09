@@ -44,7 +44,9 @@ def event_settings():
                 ext = f.filename.rsplit('.', 1)[-1].lower()
                 if ext in {'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'}:
                     filename = secure_filename(f'welcome_logo.{ext}')
-                    f.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+                    folder = current_app.config['UPLOAD_FOLDER']
+                    os.makedirs(folder, exist_ok=True)
+                    f.save(os.path.join(folder, filename))
                     cfg.welcome_logo = filename
 
         # SMTP settings
