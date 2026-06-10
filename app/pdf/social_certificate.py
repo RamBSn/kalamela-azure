@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 SOCIAL_W = 1080
 SOCIAL_H = 1920
 
-POSITION_LABELS = {1: 'Winner', 2: 'First Runner Up', 3: 'Second Runner Up'}
+POSITION_LABELS = {1: 'First Prize', 2: 'Second Prize', 3: 'Third Prize'}
 
 
 def _hex_to_rgba(hex_colour, alpha=255):

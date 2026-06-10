@@ -26,8 +26,8 @@ def require_admin():
 
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
-POSITION_LABELS = {1: 'Winner', 2: 'First Runner Up', 3: 'Second Runner Up'}
-POSITION_SOCIAL  = {1: 'Winner', 2: 'First Runner Up', 3: 'Second Runner Up'}
+POSITION_LABELS = {1: 'First Prize', 2: 'Second Prize', 3: 'Third Prize'}
+POSITION_SOCIAL  = {1: 'First Prize', 2: 'Second Prize', 3: 'Third Prize'}
 
 
 def allowed_file(filename):
