@@ -57,6 +57,10 @@ class EventConfig(db.Model):
     cert_event_y_pct = db.Column(db.Float, default=68.0)
     # Participation certificate background (separate from winner cert background)
     cert_participation_bg_image = db.Column(db.String(300), nullable=True)
+    # Social certificate text positions (% from top)
+    social_cert_name_y_pct = db.Column(db.Float, default=45.0)
+    social_cert_pos_y_pct  = db.Column(db.Float, default=55.0)
+    social_cert_item_y_pct = db.Column(db.Float, default=65.0)
 
 
 class Stage(db.Model):

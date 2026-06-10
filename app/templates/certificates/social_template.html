@@ -16,6 +16,7 @@
 <div class="alert alert-info small py-2">
   <i class="bi bi-info-circle me-1"></i>
   Generates a <strong>1080 × 1920 px portrait PNG</strong> for Instagram / WhatsApp Stories.
+  Upload a portrait background image and set the text positions below.
 </div>
 
 <div class="row g-4">
@@ -25,99 +26,89 @@
       <form method="post" enctype="multipart/form-data">
 
         <div class="mb-3">
-          <label class="form-label fw-semibold">Background Image <span class="text-muted small">(portrait, 1080×1920 ideal)</span></label>
+          <label class="form-label fw-semibold">
+            Background Image
+            <span class="text-muted small fw-normal">(portrait, 1080×1920 ideal)</span>
+          </label>
           {% if cfg and cfg.social_cert_bg_image %}
           <div class="mb-2 d-flex align-items-center gap-3">
             <img src="{{ url_for('main.uploads', filename=cfg.social_cert_bg_image) }}"
-                 alt="" style="max-height:72px;max-width:90px;object-fit:cover;border-radius:4px">
+                 alt="" style="max-height:72px;max-width:50px;object-fit:cover;border-radius:4px">
             <label class="text-danger small">
-              <input type="checkbox" name="remove_social_bg" value="1" class="form-check-input me-1">Remove image
+              <input type="checkbox" name="remove_social_bg" value="1" class="form-check-input me-1">
+              Remove image
             </label>
-          </div>
-          {% elif cfg and cfg.cert_bg_image %}
-          <div class="text-muted small mb-2">
-            <i class="bi bi-info-circle me-1"></i>No portrait background — using PDF cert background as fallback.
           </div>
           {% endif %}
           <input type="file" name="social_bg_image" class="form-control" accept=".png,.jpg,.jpeg">
-          <div class="form-text">Portrait orientation strongly recommended. Background updates after saving.</div>
+          <div class="form-text">Portrait orientation — 1080×1920 px recommended.</div>
         </div>
 
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Font</label>
-          <select name="social_cert_font" class="form-select" id="socialFont" onchange="updatePreview()">
-            <option value="">System Default</option>
-            {% set cur_font = cfg.social_cert_font if cfg and cfg.social_cert_font else '' %}
-            {% for f in font_choices %}
-            <option value="{{ f.value }}" data-css="{{ f.css }}"
-                    {{ 'selected' if f.value == cur_font }}>
-              {{ f.label }}{% if f.bold %} ✓{% endif %}
-            </option>
-            {% endfor %}
-          </select>
-          <div class="form-text">✓ = bold variant available for position label & name.</div>
+        <div class="mb-3 p-3 border rounded bg-light">
+          <label class="form-label fw-semibold">
+            <i class="bi bi-arrows-move me-1"></i>Text Positions
+            <span class="text-muted fw-normal small ms-1">(0 = top, 100 = bottom)</span>
+          </label>
+          <div class="form-text mb-2">Adjust until the text lands on the right area of your background.</div>
+          <div class="row g-2">
+            <div class="col-4">
+              <label class="form-text d-block mb-1">Name</label>
+              <div class="input-group input-group-sm">
+                <input type="number" name="social_cert_name_y_pct" id="nameYPct"
+                       class="form-control" min="1" max="99" step="0.1"
+                       oninput="updatePreview()"
+                       value="{{ '%.1f' | format(cfg.social_cert_name_y_pct) if cfg and cfg.social_cert_name_y_pct else '45.0' }}">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="col-4">
+              <label class="form-text d-block mb-1">Position</label>
+              <div class="input-group input-group-sm">
+                <input type="number" name="social_cert_pos_y_pct" id="posYPct"
+                       class="form-control" min="1" max="99" step="0.1"
+                       oninput="updatePreview()"
+                       value="{{ '%.1f' | format(cfg.social_cert_pos_y_pct) if cfg and cfg.social_cert_pos_y_pct else '55.0' }}">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="col-4">
+              <label class="form-text d-block mb-1">Item</label>
+              <div class="input-group input-group-sm">
+                <input type="number" name="social_cert_item_y_pct" id="itemYPct"
+                       class="form-control" min="1" max="99" step="0.1"
+                       oninput="updatePreview()"
+                       value="{{ '%.1f' | format(cfg.social_cert_item_y_pct) if cfg and cfg.social_cert_item_y_pct else '65.0' }}">
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="mb-3">
+        <div class="mb-4">
           <label class="form-label fw-semibold">Text Colours</label>
           <div class="row g-2">
-            <div class="col-6">
-              <label class="form-text d-block mb-1">Position label</label>
-              <input type="color" name="social_cert_pos_colour" id="colPos"
-                     class="form-control form-control-color w-100"
-                     value="{{ cfg.social_cert_pos_colour if cfg and cfg.social_cert_pos_colour else '#d4af37' }}"
-                     oninput="updatePreview()">
-            </div>
-            <div class="col-6">
-              <label class="form-text d-block mb-1">Participant name</label>
+            <div class="col-4">
+              <label class="form-text d-block mb-1">Name</label>
               <input type="color" name="social_cert_name_colour" id="colName"
                      class="form-control form-control-color w-100"
                      value="{{ cfg.social_cert_name_colour if cfg and cfg.social_cert_name_colour else '#ffffff' }}"
                      oninput="updatePreview()">
             </div>
-            <div class="col-6">
-              <label class="form-text d-block mb-1">Item name</label>
+            <div class="col-4">
+              <label class="form-text d-block mb-1">Position</label>
+              <input type="color" name="social_cert_pos_colour" id="colPos"
+                     class="form-control form-control-color w-100"
+                     value="{{ cfg.social_cert_pos_colour if cfg and cfg.social_cert_pos_colour else '#d4af37' }}"
+                     oninput="updatePreview()">
+            </div>
+            <div class="col-4">
+              <label class="form-text d-block mb-1">Item</label>
               <input type="color" name="social_cert_item_colour" id="colItem"
                      class="form-control form-control-color w-100"
                      value="{{ cfg.social_cert_item_colour if cfg and cfg.social_cert_item_colour else '#ffffff' }}"
                      oninput="updatePreview()">
             </div>
-            <div class="col-6">
-              <label class="form-text d-block mb-1">"at Event" line</label>
-              <input type="color" name="social_cert_evt_colour" id="colEvt"
-                     class="form-control form-control-color w-100"
-                     value="{{ cfg.social_cert_evt_colour if cfg and cfg.social_cert_evt_colour else '#d4af37' }}"
-                     oninput="updatePreview()">
-            </div>
           </div>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label fw-semibold">Footer Bar</label>
-          <div class="form-check mb-2">
-            <input type="checkbox" name="social_cert_show_footer" id="showFooter"
-                   class="form-check-input" value="1"
-                   {{ 'checked' if not cfg or cfg.social_cert_show_footer else '' }}
-                   onchange="updatePreview()">
-            <label class="form-check-label" for="showFooter">Show footer bar</label>
-          </div>
-          <input type="text" name="social_cert_footer" id="footerInput"
-                 class="form-control"
-                 value="{{ cfg.social_cert_footer or '' }}"
-                 placeholder="Leicester Kerala Community"
-                 oninput="updatePreview()">
-          <div class="form-text">Shown in the coloured bar at the bottom. Leave blank to use "Leicester Kerala Community".</div>
-        </div>
-
-        <div class="mb-4">
-          <label class="form-label fw-semibold">
-            Overlay Darkness &nbsp;<span id="overlayVal" class="text-muted small fw-normal"></span>
-          </label>
-          <input type="range" name="social_cert_overlay" id="overlaySlider"
-                 class="form-range" min="0" max="230" step="10"
-                 value="{{ cfg.social_cert_overlay if cfg and cfg.social_cert_overlay is not none else 170 }}"
-                 oninput="updatePreview()">
-          <div class="form-text">Higher = darker overlay → better text legibility over bright images.</div>
         </div>
 
         <button type="submit" class="btn btn-primary">Save Social Template</button>
@@ -128,80 +119,41 @@
   {# ── Live Preview ─────────────────────────────────────────────────────── #}
   <div class="col-lg-7 d-flex flex-column align-items-center">
     <div class="text-muted small mb-2">
-      <i class="bi bi-eye me-1"></i>Live preview — colours &amp; font update instantly
+      <i class="bi bi-eye me-1"></i>Preview — drag the % values to reposition text
     </div>
 
-    {# Portrait card — use aspect-ratio so height is real and % children work #}
     <div id="socialPreview" style="
-        width:min(280px,90vw);
-        aspect-ratio:9/16;
-        border-radius:16px;
-        overflow:hidden;
-        border:2px solid #444;
-        position:relative;
+        width: min(280px, 90vw);
+        aspect-ratio: 9/16;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 2px solid #444;
+        position: relative;
         {% if cfg and cfg.social_cert_bg_image %}
-          background:url('{{ url_for('main.uploads', filename=cfg.social_cert_bg_image) }}') center/cover;
-        {% elif cfg and cfg.cert_bg_image %}
-          background:url('{{ url_for('main.uploads', filename=cfg.cert_bg_image) }}') center/cover;
+          background: url('{{ url_for('main.uploads', filename=cfg.social_cert_bg_image) }}') center/cover;
         {% else %}
-          background:#1a1a2e;
+          background: #1a1a2e;
         {% endif %}">
 
-      {# Dark overlay — spans full card #}
-      <div id="previewOverlay" style="
-          position:absolute;top:0;left:0;width:100%;height:100%;
-          display:flex;flex-direction:column;align-items:center;
-          justify-content:space-evenly;
-          text-align:center;
-          padding:4% 5% 13% 5%;
-          box-sizing:border-box;">
-
-        {# 1 · Logo (same resolution order as generator: cert_logo → welcome_logo → static) #}
-        {% if cfg and cfg.cert_logo %}
-        <img src="{{ url_for('main.uploads', filename=cfg.cert_logo) }}"
-             alt="Logo" style="max-height:10%;width:auto;object-fit:contain;">
-        {% elif cfg and cfg.welcome_logo %}
-        <img src="{{ url_for('main.uploads', filename=cfg.welcome_logo) }}"
-             alt="Logo" style="max-height:10%;width:auto;object-fit:contain;">
-        {% else %}
-        <img src="{{ url_for('static', filename='lkc-logo.jpeg') }}"
-             alt="LKC" style="max-height:10%;width:auto;object-fit:contain;">
-        {% endif %}
-
-        {# 2 · Gold top divider #}
-        <div id="prevDivider" style="width:75%;height:3px;border-radius:2px;"></div>
-
-        {# 3 · Position label #}
-        <div id="prevPos" style="font-size:clamp(1rem,4cqw,1.5rem);font-weight:700;">Winner</div>
-
-        {# 4 · Item + category block #}
-        <div>
-          <div id="prevItem" style="font-size:clamp(0.65rem,2.8cqw,1rem);font-weight:500;">Folk Dance</div>
-          <div style="font-size:0.6em;color:#ccc;margin-top:2px;">Junior</div>
-        </div>
-
-        {# 5 · Thin mid-divider #}
-        <div style="width:50%;height:1px;background:rgba(255,255,255,0.25);margin:0 auto;"></div>
-
-        {# 6 · Name #}
-        <div id="prevName" style="font-size:clamp(0.85rem,3.5cqw,1.2rem);font-weight:700;">
-          Participant Name
-        </div>
-
-        {# 7 · At event #}
-        <div id="prevEvt" style="font-size:clamp(0.55rem,2.2cqw,0.8rem);font-weight:500;padding:0 4%;">
-          at {{ cfg.event_name if cfg else 'Leicester Kerala Community Kalamela' }}
-        </div>
+      <div id="pNameMarker" style="position:absolute;left:0;right:0;text-align:center;
+           transform:translateY(-50%);font-weight:700;font-size:1rem;
+           text-shadow:1px 1px 4px rgba(0,0,0,0.8);">
+        Participant Name
       </div>
-
-      {# Footer bar — pinned to bottom #}
-      <div id="prevFooter" style="
-          position:absolute;bottom:0;left:0;right:0;
-          height:10%;min-height:24px;
-          display:flex;align-items:center;justify-content:center;
-          font-size:clamp(0.45rem,1.8cqw,0.65rem);font-weight:700;color:#1a1a2e;">
-        {{ cfg.social_cert_footer or 'Leicester Kerala Community' }}
+      <div id="pPosMarker" style="position:absolute;left:0;right:0;text-align:center;
+           transform:translateY(-50%);font-weight:700;font-size:0.9rem;
+           text-shadow:1px 1px 4px rgba(0,0,0,0.8);">
+        Winner
       </div>
+      <div id="pItemMarker" style="position:absolute;left:0;right:0;text-align:center;
+           transform:translateY(-50%);font-size:0.8rem;
+           text-shadow:1px 1px 4px rgba(0,0,0,0.8);">
+        Folk Dance · Junior
+      </div>
+    </div>
+    <div class="form-text mt-2 text-center">
+      <i class="bi bi-info-circle me-1"></i>
+      Adjust the % values and save, then download a test certificate to fine-tune.
     </div>
   </div>
 </div>
@@ -210,35 +162,24 @@
 {% block extra_js %}
 <script>
 function updatePreview() {
-  const pos        = document.getElementById('colPos').value;
-  const name       = document.getElementById('colName').value;
-  const item       = document.getElementById('colItem').value;
-  const evt        = document.getElementById('colEvt').value;
-  const overlay    = parseInt(document.getElementById('overlaySlider').value);
-  const alpha      = (overlay / 255).toFixed(2);
-  const footer     = document.getElementById('footerInput').value.trim()
-                     || 'Leicester Kerala Community';
-  const showFooter = document.getElementById('showFooter').checked;
+  const nameY  = parseFloat(document.getElementById('nameYPct').value) || 45;
+  const posY   = parseFloat(document.getElementById('posYPct').value)  || 55;
+  const itemY  = parseFloat(document.getElementById('itemYPct').value) || 65;
+  const colName = document.getElementById('colName').value;
+  const colPos  = document.getElementById('colPos').value;
+  const colItem = document.getElementById('colItem').value;
 
-  const fontSel = document.getElementById('socialFont');
-  const opt     = fontSel.options[fontSel.selectedIndex];
-  const css     = (opt && opt.dataset.css) ? opt.dataset.css : 'sans-serif';
+  const nm = document.getElementById('pNameMarker');
+  const pm = document.getElementById('pPosMarker');
+  const im = document.getElementById('pItemMarker');
 
-  document.getElementById('overlayVal').textContent = `(${overlay})`;
-  document.getElementById('previewOverlay').style.background = `rgba(0,0,0,${alpha})`;
-  document.getElementById('previewOverlay').style.fontFamily = css;
-  document.getElementById('prevFooter').style.fontFamily     = css;
-
-  document.getElementById('prevPos').style.color    = pos;
-  document.getElementById('prevItem').style.color   = item;
-  document.getElementById('prevName').style.color   = name;
-  document.getElementById('prevEvt').style.color    = evt;
-  document.getElementById('prevDivider').style.background = pos;
-  document.getElementById('prevFooter').style.background  = pos;
-  document.getElementById('prevFooter').textContent       = footer;
-  document.getElementById('prevFooter').style.display     = showFooter ? 'flex' : 'none';
+  nm.style.top   = nameY + '%';
+  nm.style.color = colName;
+  pm.style.top   = posY  + '%';
+  pm.style.color = colPos;
+  im.style.top   = itemY + '%';
+  im.style.color = colItem;
 }
-
 updatePreview();
 </script>
 {% endblock %}

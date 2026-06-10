@@ -133,14 +133,15 @@ def social_template():
         db.session.commit()
 
     if request.method == 'POST':
-        cfg.social_cert_font        = request.form.get('social_cert_font', '') or None
         cfg.social_cert_pos_colour  = request.form.get('social_cert_pos_colour',  '#d4af37').strip()
         cfg.social_cert_name_colour = request.form.get('social_cert_name_colour', '#ffffff').strip()
         cfg.social_cert_item_colour = request.form.get('social_cert_item_colour', '#ffffff').strip()
-        cfg.social_cert_evt_colour  = request.form.get('social_cert_evt_colour',  '#d4af37').strip()
-        cfg.social_cert_overlay     = max(0, min(255, int(request.form.get('social_cert_overlay') or 170)))
-        cfg.social_cert_footer      = request.form.get('social_cert_footer', '').strip() or None
-        cfg.social_cert_show_footer = bool(request.form.get('social_cert_show_footer'))
+        try:
+            cfg.social_cert_name_y_pct = float(request.form.get('social_cert_name_y_pct', 45.0))
+            cfg.social_cert_pos_y_pct  = float(request.form.get('social_cert_pos_y_pct',  55.0))
+            cfg.social_cert_item_y_pct = float(request.form.get('social_cert_item_y_pct', 65.0))
+        except (TypeError, ValueError):
+            pass
 
         if 'social_bg_image' in request.files:
             file = request.files['social_bg_image']
@@ -159,8 +160,7 @@ def social_template():
         flash('Social certificate template saved.', 'success')
         return redirect(url_for('certificates.social_template'))
 
-    font_choices = get_font_choices()
-    return render_template('certificates/social_template.html', cfg=cfg, font_choices=font_choices)
+    return render_template('certificates/social_template.html', cfg=cfg)
 
 
 def _cert_logo_path(cfg):
@@ -229,21 +229,17 @@ def _make_social_cert(cfg, entry, position):
         bg_path = os.path.join(current_app.config['UPLOAD_FOLDER'], cfg.cert_bg_image)
 
     return generate_social_certificate(
-        event_name=cfg.event_name if cfg else 'Kalamela',
         participant_name=entry.display_name,
         item_name=entry.competition_item.name,
         category=entry.competition_item.category,
         position=position,
-        logo_path=_cert_logo_path(cfg),
         bg_image_path=bg_path,
-        font_value=cfg.social_cert_font if cfg else None,
-        pos_colour=cfg.social_cert_pos_colour  if cfg else '#d4af37',
+        pos_colour=cfg.social_cert_pos_colour   if cfg else '#d4af37',
         name_colour=cfg.social_cert_name_colour if cfg else '#ffffff',
         item_colour=cfg.social_cert_item_colour if cfg else '#ffffff',
-        evt_colour=cfg.social_cert_evt_colour   if cfg else '#d4af37',
-        overlay_opacity=cfg.social_cert_overlay if cfg else 170,
-        footer_text=cfg.social_cert_footer if cfg else None,
-        show_footer=bool(cfg.social_cert_show_footer) if cfg else True,
+        name_y_pct=cfg.social_cert_name_y_pct  if cfg is not None else 45.0,
+        pos_y_pct=cfg.social_cert_pos_y_pct    if cfg is not None else 55.0,
+        item_y_pct=cfg.social_cert_item_y_pct  if cfg is not None else 65.0,
     )
 
 
