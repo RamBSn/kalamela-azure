@@ -850,6 +850,70 @@ def category_from_dob():
         return jsonify({'category': ''})
 
 
+@participants_bp.route('/pdf/contact-list')
+@login_required
+def contact_list_pdf():
+    """Download a PDF of all participants: chest number, name, phone."""
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+
+    participants = Participant.query.order_by(Participant.chest_number).all()
+    cfg = EventConfig.query.first()
+    event_name = cfg.event_name if cfg else 'Kalamela'
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=15*mm, rightMargin=15*mm,
+                            topMargin=15*mm, bottomMargin=15*mm)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('t', parent=styles['Normal'],
+                                 fontSize=14, fontName='Helvetica-Bold',
+                                 alignment=TA_CENTER, spaceAfter=4)
+    sub_style   = ParagraphStyle('s', parent=styles['Normal'],
+                                 fontSize=9, fontName='Helvetica',
+                                 alignment=TA_CENTER, spaceAfter=8)
+    small = ParagraphStyle('sm', parent=styles['Normal'], fontSize=8, fontName='Helvetica')
+
+    story = [
+        Paragraph(event_name, title_style),
+        Paragraph(f'Participant Contact List — {len(participants)} participants', sub_style),
+    ]
+
+    header = ['Chest #', 'Name', 'Phone']
+    rows   = [header]
+    for p in participants:
+        rows.append([str(p.chest_number), p.full_name, p.phone or ''])
+
+    page_w = A4[0] - 30*mm
+    col_w  = [20*mm, page_w - 20*mm - 35*mm, 35*mm]
+
+    t = Table(rows, colWidths=col_w, repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND',  (0, 0), (-1, 0),  colors.HexColor('#1a1a2e')),
+        ('TEXTCOLOR',   (0, 0), (-1, 0),  colors.white),
+        ('FONTNAME',    (0, 0), (-1, 0),  'Helvetica-Bold'),
+        ('FONTSIZE',    (0, 0), (-1, -1), 8),
+        ('ALIGN',       (0, 0), (0, -1),  'CENTER'),
+        ('ALIGN',       (2, 0), (2, -1),  'CENTER'),
+        ('GRID',        (0, 0), (-1, -1), 0.4, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+        ('VALIGN',      (0, 0), (-1, -1), 'MIDDLE'),
+        ('PADDING',     (0, 0), (-1, -1), 4),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 6*mm))
+
+    doc.build(story)
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, mimetype='application/pdf', as_attachment=False,
+                     download_name='participant_contact_list.pdf')
+
+
 @participants_bp.route('/api/verify-membership', methods=['POST'])
 def verify_membership_api():
     """Proxy the LKC membership check — used by the registration form via AJAX."""

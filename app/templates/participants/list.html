@@ -15,6 +15,10 @@
       </button>
     </form>
     {% endif %}
+    <a href="{{ url_for('participants.contact_list_pdf') }}" class="btn btn-outline-secondary"
+       target="_blank">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Contact List PDF
+    </a>
     <a href="{{ url_for('participants.register_individual') }}" class="btn btn-primary">
       <i class="bi bi-person-plus me-1"></i>Register Individual
     </a>
