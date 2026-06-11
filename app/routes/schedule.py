@@ -3,7 +3,29 @@ import io
 import os
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response, current_app
 from app import db
+from sqlalchemy import and_, or_
 from app.models import Stage, Entry, CompetitionItem, EventConfig, Participant, GroupEntry, StagePlanItem
+
+
+def _competition_entry_filter():
+    """SQLAlchemy filter that excludes individual tracking entries for group items."""
+    return or_(
+        and_(CompetitionItem.item_type == 'group',  Entry.group_id.isnot(None)),
+        and_(CompetitionItem.item_type != 'group',  Entry.participant_id.isnot(None)),
+    )
+
+
+def _item_entries(item_id, stage_id=None, **extra_filters):
+    """Return only scoreable/schedulable entries for an item."""
+    item = CompetitionItem.query.get(item_id)
+    q = Entry.query.filter_by(item_id=item_id, **extra_filters)
+    if item and item.item_type == 'group':
+        q = q.filter(Entry.group_id.isnot(None))
+    else:
+        q = q.filter(Entry.participant_id.isnot(None))
+    if stage_id is not None:
+        q = q.filter_by(stage_id=stage_id)
+    return q
 
 schedule_bp = Blueprint('schedule', __name__)
 
@@ -22,7 +44,11 @@ def require_admin():
 @schedule_bp.route('/')
 def index():
     stages = Stage.query.order_by(Stage.display_order).all()
-    unassigned = Entry.query.filter_by(stage_id=None).order_by(Entry.id).all()
+    unassigned = (Entry.query
+                  .join(Entry.competition_item)
+                  .filter(Entry.stage_id.is_(None))
+                  .filter(_competition_entry_filter())
+                  .order_by(Entry.id).all())
     return render_template('schedule/index.html', stages=stages, unassigned=unassigned)
 
 
@@ -49,7 +75,11 @@ def assign():
 @schedule_bp.route('/stage/<int:stage_id>')
 def stage_view(stage_id):
     stage = Stage.query.get_or_404(stage_id)
-    entries = Entry.query.filter_by(stage_id=stage_id).order_by(Entry.running_order).all()
+    entries = (Entry.query
+               .join(Entry.competition_item)
+               .filter(Entry.stage_id == stage_id)
+               .filter(_competition_entry_filter())
+               .order_by(Entry.running_order).all())
     return render_template('schedule/stage.html', stage=stage, entries=entries)
 
 
@@ -90,8 +120,7 @@ def _build_schedule_data(category=''):
 
         event_groups = []
         for item_id in ordered_item_ids:
-            entries = (Entry.query
-                       .filter_by(stage_id=stage.id, item_id=item_id)
+            entries = (_item_entries(item_id, stage_id=stage.id)
                        .order_by(Entry.running_order)
                        .all())
             if category:

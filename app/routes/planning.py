@@ -3,6 +3,7 @@ from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, session, make_response)
 from app import db
 from app.models import Stage, StagePlanItem, Entry, EventConfig, CompetitionItem
+from app.routes.schedule import _item_entries, _competition_entry_filter
 
 planning_bp = Blueprint('planning', __name__)
 
@@ -55,8 +56,7 @@ def _plan_data(stage_id):
 
     rows = []
     for seq, pi in enumerate(plan_items, start=1):
-        entries = (Entry.query
-                   .filter_by(stage_id=stage_id, item_id=pi.item_id, is_cancelled=False)
+        entries = (_item_entries(pi.item_id, stage_id=stage_id, is_cancelled=False)
                    .order_by(Entry.running_order)
                    .all())
         rows.append({
@@ -77,7 +77,13 @@ def index():
 
     stage_summaries = []
     for stage in stages:
-        active_entries = [e for e in stage.entries if not e.is_cancelled]
+        from sqlalchemy import and_
+        active_entries = (Entry.query
+                          .join(Entry.competition_item)
+                          .filter(Entry.stage_id == stage.id,
+                                  Entry.is_cancelled == False)
+                          .filter(_competition_entry_filter())
+                          .all())
         item_ids = {e.item_id for e in active_entries}
         stage_summaries.append({
             'stage':      stage,

@@ -40,7 +40,12 @@ def generate_scoresheet(item_id: int, gender: str = None, num_judges: int = 3) -
     event_name = cfg.event_name if cfg else 'Kalamela'
     blank_rows = cfg.scoresheet_blank_rows if cfg else 3
 
-    all_entries = Entry.query.filter_by(item_id=item_id).order_by(Entry.id).all()
+    q = Entry.query.filter_by(item_id=item_id).order_by(Entry.id)
+    if item.item_type == 'group':
+        q = q.filter(Entry.group_id.isnot(None))
+    else:
+        q = q.filter(Entry.participant_id.isnot(None))
+    all_entries = q.all()
     if gender:
         entries = [e for e in all_entries if _entry_gender(e) == gender]
     else:

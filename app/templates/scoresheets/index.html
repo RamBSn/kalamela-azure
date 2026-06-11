@@ -11,7 +11,11 @@
 <h5 class="mt-4 mb-2 text-muted">{{ cat }}</h5>
 <div class="row g-2">
   {% for item in items %}
-  {% set entry_count = item.entries|length %}
+  {% if item.item_type == 'group' %}
+    {% set entry_count = item.entries | selectattr('group_id') | list | length %}
+  {% else %}
+    {% set entry_count = item.entries | selectattr('participant_id') | list | length %}
+  {% endif %}
   <div class="col-md-4">
     <div class="card p-3">
       <div class="mb-2">

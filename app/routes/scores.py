@@ -31,7 +31,8 @@ def index():
     ).all()
     item_stats = {}
     for item in items_with_entries:
-        active = [e for e in item.entries if not e.is_cancelled]
+        all_e = _competition_entries(item)
+        active = [e for e in all_e if not e.is_cancelled]
         completed = sum(1 for e in active if e.scores_complete())
         item_stats[item.id] = {
             'active': len(active),
@@ -41,10 +42,23 @@ def index():
     return render_template('scores/index.html', items=items_with_entries, item_stats=item_stats)
 
 
+def _competition_entries(item):
+    """Return only the scoreable entries for an item.
+
+    Group items create individual Entry rows per member (for the 4-event
+    limit check) AND one Entry per group. Only the group Entry should appear
+    in scoring. Solo items only have individual Entries.
+    """
+    q = Entry.query.filter_by(item_id=item.id).order_by(Entry.id)
+    if item.item_type == 'group':
+        return q.filter(Entry.group_id.isnot(None)).all()
+    return q.filter(Entry.participant_id.isnot(None)).all()
+
+
 @scores_bp.route('/event/<int:item_id>')
 def event_entries(item_id):
     item = CompetitionItem.query.get_or_404(item_id)
-    all_entries = Entry.query.filter_by(item_id=item_id).order_by(Entry.id).all()
+    all_entries = _competition_entries(item)
     judges = list(range(1, _effective_num_judges(item) + 1))
     active = [e for e in all_entries if not e.is_cancelled]
     cancelled = [e for e in all_entries if e.is_cancelled]
