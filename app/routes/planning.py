@@ -56,9 +56,13 @@ def _plan_data(stage_id):
 
     rows = []
     for seq, pi in enumerate(plan_items, start=1):
-        entries = (_item_entries(pi.item_id, stage_id=stage_id, is_cancelled=False)
-                   .order_by(Entry.running_order)
-                   .all())
+        # Show entries assigned to THIS stage + unassigned entries (stage_id=None).
+        # Entries assigned to a DIFFERENT stage are excluded — they belong there.
+        all_e = _item_entries(pi.item_id, is_cancelled=False).all()
+        entries = sorted(
+            [e for e in all_e if e.stage_id is None or e.stage_id == stage_id],
+            key=lambda e: (e.chest_number or 0),
+        )
         rows.append({
             'plan_item': pi,
             'seq':       seq,
