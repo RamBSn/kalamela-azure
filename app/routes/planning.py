@@ -56,11 +56,11 @@ def _plan_data(stage_id):
 
     rows = []
     for seq, pi in enumerate(plan_items, start=1):
-        # Show entries assigned to THIS stage + unassigned entries (stage_id=None).
-        # Entries assigned to a DIFFERENT stage are excluded — they belong there.
-        all_e = _item_entries(pi.item_id, is_cancelled=False).all()
+        # Show ALL non-cancelled participants for this event regardless of stage
+        # assignment — planning is about seeing the full field per event.
+        # Running-order assignment is managed in the schedule view.
         entries = sorted(
-            [e for e in all_e if e.stage_id is None or e.stage_id == stage_id],
+            _item_entries(pi.item_id, is_cancelled=False).all(),
             key=lambda e: (e.chest_number or 0),
         )
         rows.append({
