@@ -166,6 +166,7 @@ def _apply_migrations():
             ('cert_prize_y_pct', 'ALTER TABLE event_config ADD COLUMN cert_prize_y_pct REAL DEFAULT 57.0'),
             ('cert_event_y_pct', 'ALTER TABLE event_config ADD COLUMN cert_event_y_pct REAL DEFAULT 68.0'),
             ('cert_participation_bg_image', 'ALTER TABLE event_config ADD COLUMN cert_participation_bg_image VARCHAR(300)'),
+            ('chest_number_header_image', 'ALTER TABLE event_config ADD COLUMN chest_number_header_image VARCHAR(300)'),
             ('social_cert_name_y_pct', 'ALTER TABLE event_config ADD COLUMN social_cert_name_y_pct REAL DEFAULT 45.0'),
             ('social_cert_pos_y_pct',  'ALTER TABLE event_config ADD COLUMN social_cert_pos_y_pct REAL DEFAULT 55.0'),
             ('social_cert_item_y_pct', 'ALTER TABLE event_config ADD COLUMN social_cert_item_y_pct REAL DEFAULT 65.0'),

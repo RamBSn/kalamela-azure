@@ -21,6 +21,26 @@
   text-align: center;
   height: 140mm;
   box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* When header image is active, remove all padding so the image fills edge-to-edge */
+.chest-card.has-header {
+  padding: 0 0 8mm 0;
+  align-items: stretch;
+}
+.chest-card.has-header .card-header-img {
+  width: 100%;
+  object-fit: fill;
+  display: block;
+  flex-shrink: 0;
+}
+.chest-card.has-header .card-number {
+  margin: auto 0 0;
+  padding-top: 4mm;
+}
+.chest-card.has-header .card-name {
+  text-align: center;
 }
 
 .chest-card .card-event {
@@ -44,10 +64,10 @@
 }
 
 .chest-card .card-name {
-  font-size: 1rem;
+  font-size: 0.5rem;
   font-weight: 500;
   color: #343a40;
-  min-height: 1.4rem;
+  min-height: 0.7rem;
 }
 
 .page-divider {
@@ -86,6 +106,7 @@
     page-break-inside: avoid;
     padding: 12mm 8mm;
     margin: 0;
+    overflow: hidden;
   }
 
   /* Page break after every second card */
@@ -106,6 +127,8 @@
 
   .chest-card .card-number { font-size: {{ (font_size | string + 'pt') if font_size else '200px' }}; }
   .chest-card.extra .card-number { color: #333; }
+  .chest-card.has-header { padding: 0 0 6mm 0; align-items: stretch; }
+  .chest-card.has-header .card-header-img { width: 100%; object-fit: fill; display: block; }
 }
 </style>
 {% endblock %}
@@ -118,7 +141,7 @@
     <h2><i class="bi bi-123 me-2"></i>Print Chest Numbers</h2>
     <div class="d-flex gap-2">
       {% if numbers %}
-      <a href="{{ url_for('schedule.chest_numbers_pdf') }}?registered={{ '1' if include_registered else '0' }}{% if range_from and range_to %}&from={{ range_from }}&to={{ range_to }}{% endif %}{% if font_size %}&font_size={{ font_size }}{% endif %}"
+      <a href="{{ url_for('schedule.chest_numbers_pdf') }}?registered={{ '1' if include_registered else '0' }}{% if range_from and range_to %}&from={{ range_from }}&to={{ range_to }}{% endif %}{% if font_size %}&font_size={{ font_size }}{% endif %}&header_h={{ header_h_mm }}{% if not show_header %}&show_header=0{% endif %}{% if not show_name %}&show_name=0{% endif %}"
          class="btn btn-success" target="_blank">
         <i class="bi bi-file-earmark-pdf-fill me-1"></i>Download PDF
       </a>
@@ -130,6 +153,37 @@
         <i class="bi bi-arrow-left me-1"></i>Back
       </a>
     </div>
+  </div>
+
+  {# ── Header image upload ──────────────────────────────────────────────────── #}
+  <div class="card p-3 mb-3">
+    <form method="post" action="{{ url_for('schedule.chest_numbers_header') }}"
+          enctype="multipart/form-data" class="row g-2 align-items-center">
+      <div class="col-auto fw-semibold small">Header Image</div>
+      {% if header_img_url %}
+      <div class="col-auto">
+        <img src="{{ header_img_url }}" alt="Header"
+             style="height:36px;max-width:200px;object-fit:cover;border-radius:4px;border:1px solid #dee2e6;">
+      </div>
+      <div class="col-auto">
+        <button type="submit" name="remove_header" value="1"
+                class="btn btn-sm btn-outline-danger">Remove</button>
+      </div>
+      {% endif %}
+      <div class="col">
+        <input type="file" name="chest_header_image" class="form-control form-control-sm"
+               accept=".png,.jpg,.jpeg">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+      </div>
+      <div class="col-12">
+        <div class="form-text">
+          Design at A4 card width (~190mm wide). The image is stretched to fill the full card
+          width at the height you specify in the print options below.
+        </div>
+      </div>
+    </form>
   </div>
 
   <div class="card p-4 mb-4">
@@ -172,6 +226,34 @@
       </div>
 
       <div class="col-md-2">
+        <label class="form-label fw-semibold">Header image</label>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="show_header" id="showHeader"
+                 value="1" {{ 'checked' if show_header }} {{ 'disabled' if not header_img_url }}>
+          <label class="form-check-label" for="showHeader">Show header</label>
+        </div>
+        {% if not header_img_url %}
+        <div class="form-text">Upload an image below first.</div>
+        {% endif %}
+        <div class="form-check mt-2">
+          <input class="form-check-input" type="checkbox" name="show_name" id="showName"
+                 value="1" {{ 'checked' if show_name }}>
+          <label class="form-check-label" for="showName">Show name</label>
+        </div>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label fw-semibold">Header height</label>
+        <div class="input-group">
+          <input type="number" name="header_h" class="form-control"
+                 min="5" max="80" step="1" value="{{ header_h_mm }}"
+                 {{ 'disabled' if not header_img_url }}>
+          <span class="input-group-text">mm</span>
+        </div>
+        <div class="form-text">Height of header image on card.</div>
+      </div>
+
+      <div class="col-md-2">
         <button type="submit" class="btn btn-outline-primary w-100">
           <i class="bi bi-arrow-clockwise me-1"></i>Update
         </button>
@@ -199,12 +281,21 @@
   <div class="page-pair">
   {% endif %}
 
-    <div class="chest-card {{ '' if n.registered else 'extra' }}">
+    <div class="chest-card {{ 'has-header' if (show_header and header_img_url) else '' }} {{ '' if n.registered else 'extra' }}">
+      {% if show_header and header_img_url %}
+      <img class="card-header-img" src="{{ header_img_url }}" alt="Header"
+           style="height:{{ header_h_mm }}mm;">
+      {% else %}
       <div class="card-event">
         {{ cfg.event_name if cfg else 'Kalamela' }}
       </div>
+      {% endif %}
       <div class="card-number">{{ n.number }}</div>
+      {% if show_name %}
       <div class="card-name">{{ n.name if n.name else '&nbsp;' }}</div>
+      {% else %}
+      <div></div>
+      {% endif %}
     </div>
 
     {% if pair_pos == 0 and not loop.last %}

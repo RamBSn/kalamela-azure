@@ -1,6 +1,7 @@
 import csv
 import io
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response
+import os
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, make_response, current_app
 from app import db
 from app.models import Stage, Entry, CompetitionItem, EventConfig, Participant, GroupEntry, StagePlanItem
 
@@ -243,14 +244,60 @@ def export_excel():
     return response
 
 
+@schedule_bp.route('/chest-numbers/header', methods=['POST'])
+def chest_numbers_header():
+    from werkzeug.utils import secure_filename
+    cfg = EventConfig.query.first()
+    if not cfg:
+        cfg = EventConfig()
+        db.session.add(cfg)
+        db.session.commit()
+
+    f = request.files.get('chest_header_image')
+    if f and f.filename:
+        ext = f.filename.rsplit('.', 1)[-1].lower()
+        if ext in {'png', 'jpg', 'jpeg'}:
+            folder = current_app.config['UPLOAD_FOLDER']
+            os.makedirs(folder, exist_ok=True)
+            filename = secure_filename(f'chest_number_header.{ext}')
+            f.save(os.path.join(folder, filename))
+            cfg.chest_number_header_image = filename
+            db.session.commit()
+            flash('Header image saved.', 'success')
+        else:
+            flash('Only PNG or JPG files are accepted.', 'warning')
+
+    if request.form.get('remove_header'):
+        cfg.chest_number_header_image = None
+        db.session.commit()
+        flash('Header image removed.', 'success')
+
+    return redirect(url_for('schedule.chest_numbers'))
+
+
 @schedule_bp.route('/chest-numbers')
 def chest_numbers():
     cfg = EventConfig.query.first()
 
     include_registered = request.args.get('registered', '1') == '1'
-    range_from = request.args.get('from',      type=int, default=0)
-    range_to   = request.args.get('to',         type=int, default=0)
-    font_size  = request.args.get('font_size',  type=int, default=0) or None
+    range_from  = request.args.get('from',      type=int, default=0)
+    range_to    = request.args.get('to',         type=int, default=0)
+    font_size   = request.args.get('font_size',  type=int, default=0) or None
+    form_submitted  = 'from' in request.args
+    show_name       = ('show_name'   in request.args) if form_submitted else True
+    show_header     = ('show_header' in request.args) if form_submitted else True
+    header_h_mm     = request.args.get('header_h', type=int, default=25) or 25
+
+    # Resolve header image
+    upload_folder   = current_app.config.get('UPLOAD_FOLDER', '')
+    header_img_path = None
+    header_img_url  = None
+    if cfg and cfg.chest_number_header_image:
+        p = os.path.join(upload_folder, cfg.chest_number_header_image)
+        if os.path.exists(p):
+            header_img_url  = url_for('main.uploads', filename=cfg.chest_number_header_image)
+            if show_header:
+                header_img_path = p
 
     # Build name lookup for registered numbers
     participants = {p.chest_number: p.full_name
@@ -285,6 +332,10 @@ def chest_numbers():
         range_from=range_from or '',
         range_to=range_to or '',
         font_size=font_size or '',
+        show_name=show_name,
+        show_header=show_header,
+        header_h_mm=header_h_mm,
+        header_img_url=header_img_url,
         cfg=cfg,
     )
 
@@ -292,12 +343,22 @@ def chest_numbers():
 @schedule_bp.route('/chest-numbers/pdf')
 def chest_numbers_pdf():
     include_registered = request.args.get('registered', '1') == '1'
-    range_from = request.args.get('from',      type=int, default=0)
-    range_to   = request.args.get('to',         type=int, default=0)
-    font_size  = request.args.get('font_size',  type=int, default=0) or None
+    range_from  = request.args.get('from',      type=int, default=0)
+    range_to    = request.args.get('to',         type=int, default=0)
+    font_size   = request.args.get('font_size',  type=int, default=0) or None
+    show_name    = request.args.get('show_name',   '1') == '1'
+    show_header  = request.args.get('show_header', '1') == '1'
+    header_h_mm  = request.args.get('header_h',   type=int, default=25) or 25
 
     cfg = EventConfig.query.first()
     event_name = cfg.event_name if cfg else 'Kalamela'
+
+    upload_folder   = current_app.config.get('UPLOAD_FOLDER', '')
+    header_img_path = None
+    if show_header and cfg and cfg.chest_number_header_image:
+        p = os.path.join(upload_folder, cfg.chest_number_header_image)
+        if os.path.exists(p):
+            header_img_path = p
 
     participants = {p.chest_number: p.full_name for p in Participant.query.all()}
     groups = {g.chest_number: g.group_name for g in GroupEntry.query.all()}
@@ -321,7 +382,11 @@ def chest_numbers_pdf():
     numbers.sort(key=lambda x: x['number'])
 
     from app.pdf.chest_numbers import generate_chest_numbers_pdf
-    pdf_bytes = generate_chest_numbers_pdf(numbers, event_name, font_size=font_size)
+    pdf_bytes = generate_chest_numbers_pdf(numbers, event_name,
+                                           font_size=font_size,
+                                           header_img_path=header_img_path,
+                                           header_h_mm=header_h_mm,
+                                           show_name=show_name)
 
     response = make_response(pdf_bytes)
     response.headers['Content-Type'] = 'application/pdf'
