@@ -1,9 +1,26 @@
 import os
 from types import SimpleNamespace
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
+from sqlalchemy import and_, or_
 from werkzeug.utils import secure_filename
 from app import db
 from app.models import EventConfig, Stage, CompetitionItem, Criteria, Entry
+
+
+def _comp_entry_filter():
+    """Only count real competition entries — not individual tracking entries for group items."""
+    return or_(
+        and_(CompetitionItem.item_type == 'group',  Entry.group_id.isnot(None)),
+        and_(CompetitionItem.item_type != 'group',  Entry.participant_id.isnot(None)),
+    )
+
+
+def _is_comp_entry(entry):
+    """Python-level equivalent for filtering a loaded Entry object."""
+    item_type = entry.competition_item.item_type
+    if item_type == 'group':
+        return entry.group_id is not None
+    return entry.participant_id is not None
 
 setup_bp = Blueprint('setup', __name__)
 
@@ -82,36 +99,60 @@ def stages():
 
     all_stages = Stage.query.order_by(Stage.display_order).all()
 
-    # Items that have at least one unassigned entry
+    # Items that still have at least one unassigned *competition* entry
     items_with_unassigned = (
         CompetitionItem.query
         .join(Entry, Entry.item_id == CompetitionItem.id)
-        .filter(Entry.stage_id == None)
+        .filter(Entry.stage_id.is_(None))
+        .filter(_comp_entry_filter())
         .distinct()
         .order_by(CompetitionItem.category, CompetitionItem.name)
         .all()
     )
 
-    # Per-stage: unique items present in that stage's entries
+    # Per-stage: unique items whose competition entry is assigned to that stage
     stage_items = {}
     stage_item_ids = {}
     for stage in all_stages:
         seen = {}
         for e in stage.entries:
-            if e.item_id not in seen:
+            if _is_comp_entry(e) and e.item_id not in seen:
                 seen[e.item_id] = e.competition_item
         stage_items[stage.id] = sorted(seen.values(), key=lambda i: (i.category, i.name))
         stage_item_ids[stage.id] = list(seen.keys())
 
-    # Items available to assign per stage (unassigned items not already in that stage)
+    # All item IDs already assigned to any stage (used to avoid showing in multiple stages)
+    all_assigned_item_ids = set(
+        iid for ids in stage_item_ids.values() for iid in ids
+    )
+
+    # Items available to assign per stage:
+    # has unassigned competition entries AND not already assigned to any stage
     stage_available_items = {
-        stage.id: [i for i in items_with_unassigned if i.id not in stage_item_ids[stage.id]]
+        stage.id: [
+            i for i in items_with_unassigned
+            if i.id not in stage_item_ids[stage.id]
+            and i.id not in all_assigned_item_ids
+        ]
         for stage in all_stages
     }
 
+    # Per-item total competition entry count (for the badge in the template)
+    item_entry_counts = {}
+    for stage in all_stages:
+        for item in stage_items[stage.id]:
+            if item.id not in item_entry_counts:
+                q = Entry.query.filter_by(item_id=item.id, is_cancelled=False)
+                if item.item_type == 'group':
+                    q = q.filter(Entry.group_id.isnot(None))
+                else:
+                    q = q.filter(Entry.participant_id.isnot(None))
+                item_entry_counts[item.id] = q.count()
+
     return render_template('setup/stages.html', stages=all_stages,
                            stage_items=stage_items,
-                           stage_available_items=stage_available_items)
+                           stage_available_items=stage_available_items,
+                           item_entry_counts=item_entry_counts)
 
 
 @setup_bp.route('/stages/<int:stage_id>/delete', methods=['POST'])
@@ -142,7 +183,13 @@ def assign_items_to_stage(stage_id):
 
     assigned = 0
     for item_id in item_ids:
-        unassigned = Entry.query.filter_by(item_id=item_id, stage_id=None).order_by(Entry.id).all()
+        item = CompetitionItem.query.get(item_id)
+        q = Entry.query.filter_by(item_id=item_id, stage_id=None).order_by(Entry.id)
+        if item and item.item_type == 'group':
+            q = q.filter(Entry.group_id.isnot(None))
+        else:
+            q = q.filter(Entry.participant_id.isnot(None))
+        unassigned = q.all()
         for e in unassigned:
             last += 1
             e.stage_id = stage_id
@@ -161,8 +208,13 @@ def assign_items_to_stage(stage_id):
 def remove_item_from_stage(stage_id):
     stage = Stage.query.get_or_404(stage_id)
     item_id = int(request.form['item_id'])
-    entries = Entry.query.filter_by(item_id=item_id, stage_id=stage_id).all()
-    for e in entries:
+    item = CompetitionItem.query.get(item_id)
+    q = Entry.query.filter_by(item_id=item_id, stage_id=stage_id)
+    if item and item.item_type == 'group':
+        q = q.filter(Entry.group_id.isnot(None))
+    else:
+        q = q.filter(Entry.participant_id.isnot(None))
+    for e in q.all():
         e.stage_id = None
         e.running_order = None
     db.session.commit()

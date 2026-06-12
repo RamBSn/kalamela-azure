@@ -46,12 +46,14 @@
         {% set assigned = stage_items[stage.id] %}
         {% if assigned %}
         <p class="text-muted small px-2 mb-1">
-          {{ stage.entries | length }} entr{{ 'y' if stage.entries | length == 1 else 'ies' }}
+          {% set total = namespace(n=0) %}
+          {% for item in assigned %}{% set total.n = total.n + item_entry_counts.get(item.id, 0) %}{% endfor %}
+          {{ total.n }} entr{{ 'y' if total.n == 1 else 'ies' }}
           across {{ assigned | length }} item{{ '' if assigned | length == 1 else 's' }}
         </p>
         <ul class="list-group list-group-flush mb-2">
           {% for item in assigned %}
-          {% set entry_count = stage.entries | selectattr('item_id', 'equalto', item.id) | list | length %}
+          {% set entry_count = item_entry_counts.get(item.id, 0) %}
           <li class="list-group-item d-flex justify-content-between align-items-center px-2 py-1">
             <span class="small">
               <span class="badge {% if item.item_type=='solo' %}bg-primary{% else %}bg-success{% endif %} me-1">

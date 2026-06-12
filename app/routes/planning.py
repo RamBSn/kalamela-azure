@@ -48,17 +48,30 @@ def _sync_plan(stage_id):
 
 
 def _plan_data(stage_id):
-    """Return ordered list of dicts used by both HTML and PDF views."""
+    """Return ordered list of dicts used by both HTML and PDF views.
+
+    Only includes items that have at least one competition entry assigned
+    to this stage — items not allocated here are excluded regardless of
+    whether a StagePlanItem record exists (which _sync_plan creates for all).
+    """
     plan_items = (StagePlanItem.query
                   .filter_by(stage_id=stage_id)
                   .order_by(StagePlanItem.display_order)
                   .all())
 
     rows = []
-    for seq, pi in enumerate(plan_items, start=1):
-        # Show ALL non-cancelled participants for this event regardless of stage
-        # assignment — planning is about seeing the full field per event.
-        # Running-order assignment is managed in the schedule view.
+    seq  = 0
+    for pi in plan_items:
+        # Only include items where at least one entry is assigned to this stage
+        has_stage_entry = (
+            _item_entries(pi.item_id)
+            .filter(Entry.stage_id == stage_id)
+            .first()
+        )
+        if not has_stage_entry:
+            continue
+
+        seq += 1
         entries = sorted(
             _item_entries(pi.item_id, is_cancelled=False).all(),
             key=lambda e: (e.chest_number or 0),
@@ -107,6 +120,20 @@ def stage_plan(stage_id):
     plan_data = _plan_data(stage_id)
     return render_template('planning/stage.html',
                            stage=stage, plan_data=plan_data, cfg=cfg)
+
+
+@planning_bp.route('/stage/<int:stage_id>/reorder-bulk', methods=['POST'])
+def reorder_bulk(stage_id):
+    """Accept an ordered list of plan_item_ids and persist the new display_order."""
+    from flask import request as _req
+    data = _req.get_json(silent=True) or {}
+    ids  = data.get('order', [])
+    for i, pid in enumerate(ids, start=1):
+        item = StagePlanItem.query.get(int(pid))
+        if item and item.stage_id == stage_id:
+            item.display_order = i
+    db.session.commit()
+    return {'ok': True}
 
 
 @planning_bp.route('/stage/<int:stage_id>/reorder', methods=['POST'])

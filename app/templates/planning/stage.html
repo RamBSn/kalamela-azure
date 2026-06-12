@@ -20,7 +20,18 @@
   padding: 3px 8px;
   border-radius: 10px;
 }
-.reorder-btns form { display: inline; }
+.drag-handle {
+  cursor: grab;
+  color: #9ca3af;
+  font-size: 1rem;
+  padding: 0 4px;
+}
+.drag-handle:active { cursor: grabbing; }
+.sortable-ghost { opacity: 0.4; background: #e0e7ff; }
+.sortable-chosen { background: #f0f4ff; }
+.save-order-btn { display: none; }
+.save-order-btn.visible { display: inline-flex; }
+#saveStatus { font-size: 0.8rem; }
 </style>
 {% endblock %}
 
@@ -32,7 +43,11 @@
     </a>
     <h2 class="mb-0 mt-1"><i class="bi bi-journal-text me-2"></i>{{ stage.name }}</h2>
   </div>
-  <div class="d-flex gap-2 flex-wrap">
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+    <button id="saveOrderBtn" class="btn btn-success btn-sm save-order-btn" onclick="saveOrder()">
+      <i class="bi bi-floppy me-1"></i>Save Order
+    </button>
+    <span id="saveStatus" class="text-muted"></span>
     <form method="post" action="{{ url_for('planning.sort_by_category', stage_id=stage.id) }}"
           class="d-inline">
       <button class="btn btn-outline-secondary btn-sm">
@@ -62,11 +77,12 @@
   <table class="table table-hover mb-0" id="planTable">
     <thead class="table-dark">
       <tr>
-        <th style="width:50px">#</th>
+        <th style="width:36px"></th>
+        <th style="width:44px">#</th>
         <th>Event</th>
         <th style="width:120px">Category</th>
         <th>Participants</th>
-        <th style="width:115px" class="text-center">Actions</th>
+        <th style="width:46px" class="text-center">Del</th>
       </tr>
     </thead>
     <tbody>
@@ -83,8 +99,8 @@
           'Super Senior': 'bg-danger',
           'Common': 'bg-secondary'
         } %}
-        <tr class="table-light">
-          <td colspan="5" class="py-1">
+        <tr class="table-light cat-divider">
+          <td colspan="6" class="py-1">
             <span class="cat-badge text-white {{ colour_map.get(row.item.category, 'bg-secondary') }}">
               {{ row.item.category }}
             </span>
@@ -93,8 +109,9 @@
         {% set ns.prev_cat = row.item.category %}
       {% endif %}
 
-      <tr class="plan-row">
-        <td class="text-muted fw-semibold">{{ row.seq }}</td>
+      <tr class="plan-row" data-id="{{ row.plan_item.id }}">
+        <td class="ps-2"><span class="drag-handle" title="Drag to reorder"><i class="bi bi-grip-vertical"></i></span></td>
+        <td class="text-muted fw-semibold seq-num">{{ row.seq }}</td>
         <td>
           <strong>{{ row.item.name }}</strong>
           {% if row.item.item_type == 'group' %}
@@ -114,25 +131,7 @@
             <span class="text-muted small fst-italic">No participants yet</span>
           {% endif %}
         </td>
-        <td class="text-center reorder-btns">
-          <form method="post" action="{{ url_for('planning.reorder_item', stage_id=stage.id) }}">
-            <input type="hidden" name="plan_item_id" value="{{ row.plan_item.id }}">
-            <input type="hidden" name="direction" value="up">
-            <button class="btn btn-sm btn-outline-secondary py-0 px-1"
-                    {% if loop.first %}disabled{% endif %}
-                    title="Move up">
-              <i class="bi bi-arrow-up"></i>
-            </button>
-          </form>
-          <form method="post" action="{{ url_for('planning.reorder_item', stage_id=stage.id) }}">
-            <input type="hidden" name="plan_item_id" value="{{ row.plan_item.id }}">
-            <input type="hidden" name="direction" value="down">
-            <button class="btn btn-sm btn-outline-secondary py-0 px-1"
-                    {% if loop.last %}disabled{% endif %}
-                    title="Move down">
-              <i class="bi bi-arrow-down"></i>
-            </button>
-          </form>
+        <td class="text-center">
           <form method="post" action="{{ url_for('planning.remove_item', stage_id=stage.id) }}"
                 onsubmit="return confirm('Remove {{ row.item.name }} from this plan?')">
             <input type="hidden" name="plan_item_id" value="{{ row.plan_item.id }}">
@@ -159,5 +158,72 @@
   No events assigned to this stage yet.
   <a href="{{ url_for('setup.stages') }}">Assign events from the Stages setup page.</a>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if plan_data %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+const REORDER_URL = "{{ url_for('planning.reorder_bulk', stage_id=stage.id) }}";
+const saveBtn    = document.getElementById('saveOrderBtn');
+const saveStatus = document.getElementById('saveStatus');
+let orderChanged = false;
+
+const tbody = document.querySelector('#planTable tbody');
+
+Sortable.create(tbody, {
+  handle: '.drag-handle',
+  draggable: '.plan-row',   // only plan rows — skip category dividers
+  ghostClass: 'sortable-ghost',
+  chosenClass: 'sortable-chosen',
+  animation: 150,
+  onEnd() {
+    renumber();
+    orderChanged = true;
+    saveBtn.classList.add('visible');
+    saveStatus.textContent = 'Unsaved changes';
+    saveStatus.className = 'text-warning small';
+  }
+});
+
+function renumber() {
+  let seq = 1;
+  tbody.querySelectorAll('.plan-row').forEach(row => {
+    row.querySelector('.seq-num').textContent = seq++;
+  });
+}
+
+function saveOrder() {
+  const ids = [...tbody.querySelectorAll('.plan-row')].map(r => r.dataset.id);
+  saveBtn.disabled = true;
+  saveStatus.textContent = 'Saving…';
+  saveStatus.className = 'text-muted small';
+  fetch(REORDER_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({order: ids}),
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      orderChanged = false;
+      saveBtn.classList.remove('visible');
+      saveStatus.textContent = '✓ Saved';
+      saveStatus.className = 'text-success small';
+      setTimeout(() => { saveStatus.textContent = ''; }, 2000);
+    }
+  })
+  .catch(() => {
+    saveStatus.textContent = 'Save failed — try again';
+    saveStatus.className = 'text-danger small';
+  })
+  .finally(() => { saveBtn.disabled = false; });
+}
+
+window.addEventListener('beforeunload', e => {
+  if (orderChanged) { e.preventDefault(); e.returnValue = ''; }
+});
+</script>
 {% endif %}
 {% endblock %}
